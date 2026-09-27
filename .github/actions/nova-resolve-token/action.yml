@@ -5,13 +5,15 @@ description: >-
     1. GitHub App installation token (auto-managed, granular scope). Generated
        via `actions/create-github-app-token@v2` when `app-id` and `app-private-key`
        are provided. Best option: scoped per installation, no human rotation.
-    2. GITHUB_TOKEN (auto-provided, but works only for same-repo package reads).
-    3. NOVA_PACKAGES_READ_TOKEN (PAT). Transitional fallback; will be deprecated
-       once GitHub App is installed on all consumer repos.
-    4. NOVA_RELEASE_PAT (PAT). Legacy last-resort fallback; already removed from
-       all callers but retained here to avoid breaking very old consumers.
-  Emits a `::notice::` annotation when a PAT is in use (encourages migration to
-  the GitHub App) and a `::warning::` if NOVA_RELEASE_PAT is selected.
+    2. NOVA_PACKAGES_READ_TOKEN (PAT). Transitional; will be deprecated once the
+       GitHub App is installed on all consumer repos.
+    3. NOVA_RELEASE_PAT (PAT). Legacy fallback; already removed from all callers
+       but retained here to avoid breaking very old consumers.
+    4. GITHUB_TOKEN. Last resort: it only reads the packages of the repository
+       running the workflow, so it cannot serve a cross-repo read.
+  A composite action cannot read the secrets context, so the caller passes each
+  token as an input. Emits a `::notice::` when a PAT or GITHUB_TOKEN is in use and
+  a `::warning::` if NOVA_RELEASE_PAT is selected.
 
 inputs:
   app-id:
@@ -29,6 +31,21 @@ inputs:
     required: false
     default: 'ahincho'
     type: string
+  packages-read-token:
+    description: 'NOVA_PACKAGES_READ_TOKEN, a PAT with read access to the packages of the other repos. Pass secrets.NOVA_PACKAGES_READ_TOKEN.'
+    required: false
+    default: ''
+    type: string
+  legacy-token:
+    description: 'NOVA_RELEASE_PAT, the legacy PAT. Pass secrets.NOVA_RELEASE_PAT.'
+    required: false
+    default: ''
+    type: string
+  github-token:
+    description: 'GITHUB_TOKEN, used only when nothing else is available: it reads the packages of the calling repository only.'
+    required: false
+    default: ${{ github.token }}
+    type: string
 
 outputs:
   value:
@@ -36,8 +53,8 @@ outputs:
     value: ${{ steps.resolve.outputs.value }}
   source:
     description: >-
-      Which source was selected: GITHUB_APP_TOKEN | GITHUB_TOKEN |
-      NOVA_PACKAGES_READ_TOKEN | NOVA_RELEASE_PAT | NONE.
+      Which source was selected: GITHUB_APP_TOKEN | NOVA_PACKAGES_READ_TOKEN |
+      NOVA_RELEASE_PAT | GITHUB_TOKEN | NONE.
     value: ${{ steps.resolve.outputs.source }}
 
 runs:
@@ -62,21 +79,20 @@ runs:
     # `secrets.X || secrets.Y` (it evaluates to "1" if X is unset, even when
     # Y has a value - see commit bb67ea7, notifications module publish
     # workflow). Doing the comparison in shell avoids that footgun.
+    # The tokens arrive as inputs: a composite action has no secrets context,
+    # and referencing it makes GitHub refuse to load the whole action.
     - name: Resolve token
       id: resolve
       shell: bash
       env:
         APP_TOKEN: ${{ steps.app-token.outputs.token }}
-        TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-        TOKEN_PRIMARY: ${{ secrets.NOVA_PACKAGES_READ_TOKEN }}
-        TOKEN_LEGACY: ${{ secrets.NOVA_RELEASE_PAT }}
+        TOKEN_PRIMARY: ${{ inputs.packages-read-token }}
+        TOKEN_LEGACY: ${{ inputs.legacy-token }}
+        TOKEN_GITHUB: ${{ inputs.github-token }}
       run: |
         if [ -n "${APP_TOKEN}" ]; then
           echo "value=${APP_TOKEN}" >> "$GITHUB_OUTPUT"
           echo "source=GITHUB_APP_TOKEN" >> "$GITHUB_OUTPUT"
-        elif [ -n "${TOKEN_GITHUB}" ]; then
-          echo "value=${TOKEN_GITHUB}" >> "$GITHUB_OUTPUT"
-          echo "source=GITHUB_TOKEN" >> "$GITHUB_OUTPUT"
         elif [ -n "${TOKEN_PRIMARY}" ]; then
           echo "value=${TOKEN_PRIMARY}" >> "$GITHUB_OUTPUT"
           echo "source=NOVA_PACKAGES_READ_TOKEN" >> "$GITHUB_OUTPUT"
@@ -85,6 +101,10 @@ runs:
           echo "value=${TOKEN_LEGACY}" >> "$GITHUB_OUTPUT"
           echo "source=NOVA_RELEASE_PAT" >> "$GITHUB_OUTPUT"
           echo "::warning::NOVA_RELEASE_PAT is deprecated. Migrate to NOVA_PACKAGES_READ_TOKEN or, better, to GitHub App authentication."
+        elif [ -n "${TOKEN_GITHUB}" ]; then
+          echo "value=${TOKEN_GITHUB}" >> "$GITHUB_OUTPUT"
+          echo "source=GITHUB_TOKEN" >> "$GITHUB_OUTPUT"
+          echo "::notice::Only GITHUB_TOKEN is available. It reads the packages of this repository only, so a cross-repo read will fail with HTTP 401."
         else
           echo "value=" >> "$GITHUB_OUTPUT"
           echo "source=NONE" >> "$GITHUB_OUTPUT"

@@ -5,9 +5,16 @@ Resolves the right token for **cross-repo GitHub Packages reads**. Priority orde
 1. **GitHub App installation token** (preferred - auto-managed, granular scope, no human rotation)
    - Generated via `actions/create-github-app-token@v2` when `app-id` and `app-private-key` inputs are provided.
    - Requires a GitHub App installed on both the calling repo AND the target repo.
-2. `GITHUB_TOKEN` (works only for same-repo reads; fails with HTTP 401 on cross-repo)
-3. `NOVA_PACKAGES_READ_TOKEN` (transitional PAT - emit a `::notice::` encouraging migration to the App)
-4. `NOVA_RELEASE_PAT` (legacy PAT - already removed from all callers; emit a `::warning::`)
+2. `NOVA_PACKAGES_READ_TOKEN` (transitional PAT - emit a `::notice::` encouraging migration to the App)
+3. `NOVA_RELEASE_PAT` (legacy PAT - already removed from all callers; emit a `::warning::`)
+4. `GITHUB_TOKEN` (last resort: it only reads the calling repo's packages, so a cross-repo read fails with HTTP 401)
+
+`GITHUB_TOKEN` goes last because it is always present: ranked before the PAT, as it was until
+2026-09-27, it won every time and no cross-repo read could succeed.
+
+Every token arrives as an input. A composite action has no `secrets` context, and referencing
+it makes GitHub refuse to load the action at all (`Unrecognized named-value: 'secrets'`), which
+is what every job that called this action hit between 2026-07-21 and 2026-09-27.
 
 ## Why this exists
 
@@ -28,13 +35,16 @@ Doing the comparison in shell via `[ -n "${TOKEN_X}" ]` is correct and well-beha
 | `app-id` | no | GitHub App ID (numeric string). If empty, App auth is skipped. |
 | `app-private-key` | no | GitHub App private key (PEM contents, multi-line). If empty, App auth is skipped. |
 | `app-owner` | no | GitHub user/org that owns the App. Default: `ahincho`. Only used when App creds are set. |
+| `packages-read-token` | no | `NOVA_PACKAGES_READ_TOKEN`: pass `${{ secrets.NOVA_PACKAGES_READ_TOKEN }}`. |
+| `legacy-token` | no | `NOVA_RELEASE_PAT`: pass `${{ secrets.NOVA_RELEASE_PAT }}`. |
+| `github-token` | no | Last resort. Default: `${{ github.token }}`. |
 
 ## Outputs
 
 | Output | Description |
 |---|---|
 | `value` | Resolved token value (string). Empty when no source is available. |
-| `source` | Which source was selected: `GITHUB_APP_TOKEN`, `GITHUB_TOKEN`, `NOVA_PACKAGES_READ_TOKEN`, `NOVA_RELEASE_PAT`, or `NONE`. |
+| `source` | Which source was selected: `GITHUB_APP_TOKEN`, `NOVA_PACKAGES_READ_TOKEN`, `NOVA_RELEASE_PAT`, `GITHUB_TOKEN`, or `NONE`. |
 
 ## Setup (one-time, for consumers)
 
@@ -66,7 +76,7 @@ Doing the comparison in shell via `[ -n "${TOKEN_X}" ]` is correct and well-beha
    - **Repository access**: only the repos that publish packages (the ones you read from)
    - **Permissions**: `Contents: Read-only`, `Packages: Read-only`
 2. Add as repo secret `NOVA_PACKAGES_READ_TOKEN`.
-3. Do NOT pass `app-id` / `app-private-key` to `nova-resolve-token`. The action falls back to the PAT automatically.
+3. Pass it as `packages-read-token`. When `app-id` / `app-private-key` are empty, the action skips the App and picks the PAT.
 
 ## Example usage
 
@@ -79,6 +89,8 @@ Doing the comparison in shell via `[ -n "${TOKEN_X}" ]` is correct and well-beha
   with:
     app-id: ${{ secrets.NOVA_PLATFORM_APP_ID }}
     app-private-key: ${{ secrets.NOVA_PLATFORM_APP_PRIVATE_KEY }}
+    packages-read-token: ${{ secrets.NOVA_PACKAGES_READ_TOKEN }}
+    legacy-token: ${{ secrets.NOVA_RELEASE_PAT }}
 
 - name: Nova Setup Java
   uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-setup-java@<pinned-sha>
@@ -94,7 +106,9 @@ Doing the comparison in shell via `[ -n "${TOKEN_X}" ]` is correct and well-beha
 - name: Nova Resolve Token (PAT fallback)
   id: resolve_token
   uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-resolve-token@<pinned-sha>
-  # no `with:` block - App auth skipped, falls back to PAT
+  with:
+    packages-read-token: ${{ secrets.NOVA_PACKAGES_READ_TOKEN }}
+  # App auth skipped: the PAT wins
 ```
 
 ## Debugging
