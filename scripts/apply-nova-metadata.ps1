@@ -49,7 +49,7 @@ $ErrorActionPreference = 'Stop'
 # Data: Descriptions (32 repos, English)
 # ============================================================
 $Descriptions = @{
-  'nova-java-13-bom'              = 'Root Bill of Materials (BOM) for the Nova Platform meta-framework. Centralizes dependency versions for Java, NestJS and future stacks.'
+  'nova-java-13-bom'              = 'Bill of Materials for the Nova Platform Java stack: nova-bom for the pure libraries, plus one BOM per framework (Spring Boot, Quarkus and Micronaut).'
   'nova-shared-02-pipelines'           = 'Reusable GitHub Actions workflows for CI/CD of the Nova Platform meta-framework (build, quality, publish for Maven and Gradle).'
   'nova-shared-01-docs'             = 'Nova Platform meta-framework documentation: ADRs (shared, java, nest), technical guides (semantic versioning, maturity evaluation, archetype comparison) and operational automation scripts.'
   'nova-shared-03-infrastructure'   = 'Infrastructure as code (Docker Compose) for the Nova Platform observability stack: OpenTelemetry Collector, Tempo, Loki, Mimir, Pyroscope and Grafana.'
