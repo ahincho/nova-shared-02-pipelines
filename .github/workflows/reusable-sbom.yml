@@ -50,7 +50,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-sbom-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   sbom:
@@ -69,10 +69,12 @@ jobs:
 
       - name: Nova Resolve Token
         id: resolve_token
-        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-resolve-token@5b64e8a044159cb7f8bf195818cf0c14c6e71d1e  # @main (Lote Q SHA-pin)
+        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-resolve-token@9b546b19f87b8f05620544c5cf12cc5e0e36b66d  # @main (Lote Q SHA-pin)
         with:
           app-id: ${{ secrets.NOVA_PLATFORM_APP_ID }}
           app-private-key: ${{ secrets.NOVA_PLATFORM_APP_PRIVATE_KEY }}
+          packages-read-token: ${{ secrets.NOVA_PACKAGES_READ_TOKEN }}
+          legacy-token: ${{ secrets.NOVA_RELEASE_PAT }}
 
       - name: Nova Setup Java
         uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-setup-java@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)

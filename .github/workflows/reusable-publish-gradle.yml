@@ -48,7 +48,7 @@ permissions:
 
 # DEPRECATED but still used by unmigrated repos. Do NOT cancel; publish is destructive.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-publish-gradle-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   publish:

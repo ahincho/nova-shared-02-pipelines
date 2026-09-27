@@ -63,7 +63,7 @@ This repository provides a standardized CI/CD pipeline with dedicated variants f
   migrations/                         # Bundle migrations applied via gh CLI
     nova-bom-lote-f/
     nova-java-spring-boot-parent-lote-f/
-tests/                                # Pester 5.7.1 test suite (235 tests)
+tests/                                # Pester 5.7.1 test suite (243 tests)
 scripts/                              # PowerShell operator scripts
   apply-nova-labels.ps1
   apply-nova-metadata.ps1
@@ -242,11 +242,11 @@ Local caller that invokes `reusable-release-publish.yml` when a `vX.Y.Z` tag is 
 | `nova-publish-aggregator` | Aggregates multi-module publish outputs for GitHub Packages |
 | `nova-verify-publication` | Downloads what a publish step just uploaded to GitHub Packages and fails the job if it cannot |
 
-The workflows here pin the composite actions to the same canonical commit (`300f6695c82197f50b2cfa0831bd146ed549a279`), with two exceptions: `nova-setup-python`, which `reusable-build-python.yml` pins to the commit that added it (`1012c24789a8457006e3d51276801c67bac160e3`), and `nova-resolve-token`, pinned to `5b64e8a044159cb7f8bf195818cf0c14c6e71d1e` because the canonical commit predates it. No workflow here calls `nova-verify-publication`: each repository's `publish-on-tag.yml` calls it right after its publish step.
+The workflows here pin the composite actions to the same canonical commit (`300f6695c82197f50b2cfa0831bd146ed549a279`), with two exceptions: `nova-setup-python`, which `reusable-build-python.yml` pins to the commit that added it (`1012c24789a8457006e3d51276801c67bac160e3`), and `nova-resolve-token`, pinned to `9b546b19f87b8f05620544c5cf12cc5e0e36b66d`, the commit that makes it take its tokens as inputs: the canonical commit predates the action, and every version before that one references the `secrets` context and fails to load. No workflow here calls `nova-verify-publication`: each repository's `publish-on-tag.yml` calls it right after its publish step.
 
 ## Pester Test Suite
 
-A 235-test Pester 5.7.1 suite covers workflow structure, input surfaces, security-critical patterns (env-var indirection, SHA pinning), and migrations.
+A 243-test Pester 5.7.1 suite covers workflow structure, input surfaces, security-critical patterns (env-var indirection, SHA pinning), and migrations.
 
 ```powershell
 $env:PSModulePath = "$env:USERPROFILE\Documents\PowerShell\Modules;" + $env:PSModulePath

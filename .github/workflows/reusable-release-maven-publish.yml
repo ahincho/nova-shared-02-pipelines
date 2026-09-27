@@ -52,7 +52,7 @@ permissions:
 
 # Tag-driven publish: NEVER cancel; one tag = one canonical publish.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-release-maven-publish-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:

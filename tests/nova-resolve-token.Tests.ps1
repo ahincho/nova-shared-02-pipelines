@@ -65,6 +65,25 @@ Describe 'nova-resolve-token/action.yml - composite integrity' {
   It 'has resolve step using bash' {
     $script:actionText | Should -Match "shell: bash"
   }
+
+  It 'declares the three token inputs, github-token defaulting to github.token' {
+    $script:actionText | Should -Match "(?m)^\s{2}packages-read-token:\s*$"
+    $script:actionText | Should -Match "(?m)^\s{2}legacy-token:\s*$"
+    $script:actionText | Should -Match "(?m)^\s{2}github-token:\s*$"
+    $script:actionText | Should -Match '(?m)^\s+default:\s*\$\{\{ github\.token \}\}\s*$'
+  }
+
+  # A composite action has no secrets context: GitHub refuses to load one that
+  # references it. That is what broke every caller from 2026-07-21 to 2026-09-27.
+  It 'never references the secrets context' {
+    $script:actionText | Should -Not -Match '\$\{\{\s*secrets\.'
+  }
+
+  It 'reads each token from its input' {
+    $script:actionText | Should -Match 'TOKEN_PRIMARY:\s+\$\{\{ inputs\.packages-read-token \}\}'
+    $script:actionText | Should -Match 'TOKEN_LEGACY:\s+\$\{\{ inputs\.legacy-token \}\}'
+    $script:actionText | Should -Match 'TOKEN_GITHUB:\s+\$\{\{ inputs\.github-token \}\}'
+  }
 }
 
 Describe 'nova-resolve-token/action.yml - priority order' {
@@ -74,13 +93,11 @@ Describe 'nova-resolve-token/action.yml - priority order' {
     $firstCheck | Should -Be 'APP_TOKEN'
   }
 
-  It 'checks all 4 sources in order' {
-    $order = [regex]::Matches($script:actionText, 'if \[ -n "\$\{(\w+)_?(?:GITHUB|PRIMARY|LEGACY)?\}"?\]') | ForEach-Object { $_.Groups[1].Value }
-    # Fallback simple check: all 4 must be present
-    $script:actionText | Should -Match 'APP_TOKEN'
-    $script:actionText | Should -Match 'TOKEN_GITHUB'
-    $script:actionText | Should -Match 'TOKEN_PRIMARY'
-    $script:actionText | Should -Match 'TOKEN_LEGACY'
+  # GITHUB_TOKEN is always present, so it has to come last: ranked before the
+  # PAT it won every time, and a cross-repo read could never succeed.
+  It 'checks the App token, the PAT, the legacy PAT and GITHUB_TOKEN, in that order' {
+    $order = [regex]::Matches($script:actionText, '(?m)^\s*(?:el)?if \[ -n "\$\{(\w+)\}" \]') | ForEach-Object { $_.Groups[1].Value }
+    ($order -join ',') | Should -Be 'APP_TOKEN,TOKEN_PRIMARY,TOKEN_LEGACY,TOKEN_GITHUB'
   }
 
   It 'emits notice when PAT is used' {
@@ -132,5 +149,23 @@ Describe 'nova-resolve-token callers - App auth wired in 5 workflows' {
       $content = Get-Content -LiteralPath $path -Raw
       $content | Should -Match 'NOVA_PLATFORM_APP_PRIVATE_KEY' -Because "$f must wire the App private key secret"
     }
+  }
+
+  It 'each expected caller passes both PATs as inputs' {
+    foreach ($f in $script:expectedCallers) {
+      $content = Get-Content -LiteralPath (Join-Path $script:workflowsDir $f) -Raw
+      $content | Should -Match 'packages-read-token:\s+\$\{\{ secrets\.NOVA_PACKAGES_READ_TOKEN \}\}' -Because "$f must pass NOVA_PACKAGES_READ_TOKEN to the action"
+      $content | Should -Match 'legacy-token:\s+\$\{\{ secrets\.NOVA_RELEASE_PAT \}\}' -Because "$f must pass NOVA_RELEASE_PAT to the action"
+    }
+  }
+
+  It 'all callers pin the action to the same commit' {
+    $pins = foreach ($f in $script:expectedCallers) {
+      $content = Get-Content -LiteralPath (Join-Path $script:workflowsDir $f) -Raw
+      $m = [regex]::Match($content, 'nova-resolve-token@([0-9a-f]{40})')
+      $m.Success | Should -BeTrue -Because "$f must pin nova-resolve-token to a commit SHA"
+      $m.Groups[1].Value
+    }
+    @($pins | Sort-Object -Unique).Count | Should -Be 1
   }
 }
