@@ -3,7 +3,7 @@
 # Triggered by tag push (vX.Y.Z) created by release-please after merging a
 # release PR. Deploys ALL Maven modules of this multi-module BOM to GitHub
 # Packages. Replaces the DEPRECATED `.github/workflows/publish.yml` which used
-# `ahincho/nova-devops/.github/workflows/reusable-publish-maven.yml@main`.
+# `ahincho/nova-shared-02-pipelines/.github/workflows/reusable-publish-maven.yml@main`.
 #
 # This wrapper directly calls the Maven variant of the reusable workflow
 # (the nova-devops `publish-on-tag.yml` wrapper has a gradle default for the
@@ -38,7 +38,7 @@ concurrency:
 
 jobs:
   publish:
-    uses: ahincho/nova-devops/.github/workflows/reusable-release-maven-publish.yml@main # pinned to stable; see CHANGELOG Lote P
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-release-maven-publish.yml@main # pinned to stable; see CHANGELOG Lote P
     with:
       java-version: ${{ github.event.inputs.java-version || '25' }}
       dry-run: ${{ github.event.inputs.dry-run || 'false' }}

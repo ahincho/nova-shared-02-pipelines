@@ -1,6 +1,6 @@
 # All uses: refs in this workflow are SHA-pinned (Lote Q hardening, see CHANGELOG.md).
 # - External actions: pinned to commit SHAs of the desired version tag
-# - Internal actions (ahincho/nova-devops/.github/actions/*): pinned to commit 1012c24789a8457006e3d51276801c67bac160e3
+# - Internal actions (ahincho/nova-shared-02-pipelines/.github/actions/*): pinned to commit 1012c24789a8457006e3d51276801c67bac160e3
 # To bump internal action SHAs after a nova-devops release: search/replace the SHA in this file.
 #
 # ruff and pytest come from the consumer's own dependencies, pinned by its
@@ -78,7 +78,7 @@ jobs:
           persist-credentials: false
 
       - name: Nova Setup Python
-        uses: ahincho/nova-devops/.github/actions/nova-setup-python@1012c24789a8457006e3d51276801c67bac160e3  # Lote Q SHA-pin
+        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-setup-python@1012c24789a8457006e3d51276801c67bac160e3  # Lote Q SHA-pin
         with:
           python-version: ${{ inputs.python-version }}
           uv-version: ${{ inputs.uv-version }}

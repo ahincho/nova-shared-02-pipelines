@@ -81,8 +81,8 @@ scripts/                              # PowerShell operator scripts
 **Implication for consumers:** every library repository must reference this repository using a pinned commit SHA:
 
 ```yaml
-uses: ahincho/nova-devops/.github/workflows/reusable-XYZ.yml@300f6695c82197f50b2cfa0831bd146ed549a279
-uses: ahincho/nova-devops/.github/actions/nova-XYZ@300f6695c82197f50b2cfa0831bd146ed549a279
+uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-XYZ.yml@300f6695c82197f50b2cfa0831bd146ed549a279
+uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-XYZ@300f6695c82197f50b2cfa0831bd146ed549a279
 ```
 
 Pinning to `@main`, `@vX.Y.Z`, or a non-SHA ref is **out of scope** and breaks reproducibility guarantees.
@@ -339,14 +339,14 @@ permissions: {}
 
 jobs:
   build:
-    uses: ahincho/nova-devops/.github/workflows/reusable-build-gradle.yml@300f6695c82197f50b2cfa0831bd146ed549a279
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-build-gradle.yml@300f6695c82197f50b2cfa0831bd146ed549a279
     with:
       java-version: '25'
     secrets: inherit
 
   sonar:
     if: github.event_name == 'pull_request'
-    uses: ahincho/nova-devops/.github/workflows/reusable-sonarcloud-gradle.yml@300f6695c82197f50b2cfa0831bd146ed549a279
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-sonarcloud-gradle.yml@300f6695c82197f50b2cfa0831bd146ed549a279
     with:
       sonar-org: ahincho
       sonar-project-key: ahincho_nova-<name>
@@ -354,7 +354,7 @@ jobs:
     secrets: inherit
 
   owasp:
-    uses: ahincho/nova-devops/.github/workflows/reusable-owasp-check.yml@300f6695c82197f50b2cfa0831bd146ed549a279
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-owasp-check.yml@300f6695c82197f50b2cfa0831bd146ed549a279
     with:
       java-version: '25'
 ```
@@ -374,7 +374,7 @@ permissions:
 
 jobs:
   release-please:
-    uses: ahincho/nova-devops/.github/workflows/reusable-release-please.yml@300f6695c82197f50b2cfa0831bd146ed549a279
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-release-please.yml@300f6695c82197f50b2cfa0831bd146ed549a279
     with:
       release-type: java
       package-name: nova-<name>
@@ -393,7 +393,7 @@ on:
 
 jobs:
   publish:
-    uses: ahincho/nova-devops/.github/workflows/reusable-release-publish.yml@300f6695c82197f50b2cfa0831bd146ed549a279
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-release-publish.yml@300f6695c82197f50b2cfa0831bd146ed549a279
     secrets: inherit
 ```
 
@@ -443,7 +443,7 @@ permissions:
 
 jobs:
   build:
-    uses: ahincho/nova-devops/.github/workflows/reusable-build-python.yml@8e875e2a349c1853074c4990f2b9878295041194
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-build-python.yml@8e875e2a349c1853074c4990f2b9878295041194
 ```
 
 A check that only one project needs runs in its own job with the composite action. `save-cache: 'false'` makes it restore the cache without racing the `build` job to upload the same key:
@@ -456,7 +456,7 @@ A check that only one project needs runs in its own job with the composite actio
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - uses: ahincho/nova-devops/.github/actions/nova-setup-python@8e875e2a349c1853074c4990f2b9878295041194
+      - uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-setup-python@8e875e2a349c1853074c4990f2b9878295041194
         with:
           save-cache: 'false'
       - run: uv run --no-sync python scripts/check.py

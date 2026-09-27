@@ -12,7 +12,7 @@
     purge-pat          BORRA NOVA_RELEASE_PAT de los 7 repos B/C/D (era residual, ya no
                        se usa tras la migracion a workflow_run + GITHUB_TOKEN puro).
                        No requiere valor de PAT: solo borra el secret.
-    cleanup-residual   Borra NOVA_RELEASE_PAT residual de nova-devops, spring-boot-parent
+    cleanup-residual   Borra NOVA_RELEASE_PAT residual de nova-shared-02-pipelines, spring-boot-parent
                        y los 3 repos demo.
 
   Seguridad:
@@ -75,9 +75,9 @@ $Owner = 'ahincho'
 
 # 7 repos B/C/D que necesitan READ + PAT conservado
 $ReposBCDE = @(
-  'nova-java-commons-spring-boot-starter'
-  'nova-java-observability-spring-boot-starter'
-  'nova-java-spring-boot-starter'
+  'nova-java-08-commons-spring-boot-starter'
+  'nova-java-09-observability-spring-boot-starter'
+  'nova-java-12-spring-boot-starter'
   'nova-java-notifications-micronaut-module'
   'nova-java-notifications-quarkus-extension'
   'nova-java-notifications-spring-boot-starter'
@@ -87,16 +87,16 @@ $ReposBCDE = @(
 # 5 repos con PAT residual sin consumer real
 #   * 2 repos base (parent POM + devops): no publican nada
 #   * 3 repos demo de Nova Notifications: creados 2026-07-15 sin workflows
-#   * nova-java-quarkus-template: sin workflows (recien agregado 2026-07-15)
-# NO incluye nova-java-architecture-rules: ese SI usa NOVA_RELEASE_PAT
+#   * nova-java-19-quarkus-template: sin workflows (recien agregado 2026-07-15)
+# NO incluye nova-java-07-architecture-rules: ese SI usa NOVA_RELEASE_PAT
 # activamente en ci.yml para resolver packages cross-repo con Maven.
 $ReposResidual = @(
-  'nova-devops'
-  'nova-java-spring-boot-parent'
+  'nova-shared-02-pipelines'
+  'nova-java-14-spring-boot-parent'
   'demo-notifications-micronaut'
   'demo-notifications-quarkus'
   'demo-notifications-spring-boot'
-  'nova-java-quarkus-template'
+  'nova-java-19-quarkus-template'
 )
 
 # ============================================================

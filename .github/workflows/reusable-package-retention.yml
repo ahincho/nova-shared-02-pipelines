@@ -2,7 +2,7 @@
 
 # All `uses:` refs in this workflow are SHA-pinned (Lote Q hardening, see CHANGELOG.md).
 # - External actions: pinned to commit SHAs of the desired version tag
-# - Internal actions (ahincho/nova-devops/.github/actions/*): pinned to commit 300f6695c82197f50b2cfa0831bd146ed549a279
+# - Internal actions (ahincho/nova-shared-02-pipelines/.github/actions/*): pinned to commit 300f6695c82197f50b2cfa0831bd146ed549a279
 # To bump internal action SHAs after a nova-devops release: search/replace the SHA in this file.
 
 description: |

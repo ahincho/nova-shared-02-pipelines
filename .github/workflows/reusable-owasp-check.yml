@@ -1,6 +1,6 @@
 # All uses: refs in this workflow are SHA-pinned (Lote Q hardening, see CHANGELOG.md).
 # - External actions: pinned to commit SHAs of the desired version tag
-# - Internal actions (ahincho/nova-devops/.github/actions/*): pinned to commit 300f6695c82197f50b2cfa0831bd146ed549a279
+# - Internal actions (ahincho/nova-shared-02-pipelines/.github/actions/*): pinned to commit 300f6695c82197f50b2cfa0831bd146ed549a279
 # To bump internal action SHAs after a nova-devops release: search/replace the SHA in this file.
 name: Reusable OWASP Dependency Check
 
@@ -100,13 +100,13 @@ jobs:
 
       - name: Nova Resolve Token
         id: resolve_token
-        uses: ahincho/nova-devops/.github/actions/nova-resolve-token@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
+        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-resolve-token@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
         with:
           app-id: ${{ secrets.NOVA_PLATFORM_APP_ID }}
           app-private-key: ${{ secrets.NOVA_PLATFORM_APP_PRIVATE_KEY }}
 
       - name: Nova Setup Java
-        uses: ahincho/nova-devops/.github/actions/nova-setup-java@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
+        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-setup-java@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
         with:
           java-version: ${{ inputs.java-version }}
           build-tool: ${{ inputs.build-tool }}
@@ -114,7 +114,7 @@ jobs:
 
       - name: Nova Gather Facts
         id: facts
-        uses: ahincho/nova-devops/.github/actions/nova-gather-facts@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
+        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-gather-facts@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
 
       - name: Get date bucket for NVD cache
         id: nvd-date
@@ -136,7 +136,7 @@ jobs:
           SUPPRESSION_LIST: ${{ inputs.cve-suppressions || vars.NOVA_OWASP_CVE_SUPPRESSIONS || '' }}
         run: |
           mkdir -p /tmp/owasp
-          REGISTRY_URL="https://raw.githubusercontent.com/ahincho/nova-devops/main/docs/owasp-suppressions.json"
+          REGISTRY_URL="https://raw.githubusercontent.com/ahincho/nova-shared-02-pipelines/main/docs/owasp-suppressions.json"
           if ! curl -fsSL --retry 3 -o /tmp/owasp/registry.json "$REGISTRY_URL"; then
             echo "::warning::Could not download the FP suppression registry from nova-devops. NOVA_OWASP_CVE_SUPPRESSIONS will be IGNORED for this run."
             echo "suppressions-file=" >> "$GITHUB_OUTPUT"
@@ -224,7 +224,7 @@ jobs:
             ${{ runner.os }}-nvd-
 
       # Single-updater/multiple-readers pattern (see docs/data/cacheh2.html):
-      # ahincho/nova-devops's nvd-mirror-update.yml is the ONLY workflow across
+      # ahincho/nova-shared-02-pipelines's nvd-mirror-update.yml is the ONLY workflow across
       # all Nova Java repos that is allowed to do a full NVD sync, once a day.
       # Every repo's PR/CI OWASP job just downloads that pre-built database
       # read-only here, instead of the 12 repos hitting NVD independently
@@ -236,9 +236,9 @@ jobs:
         run: |
           mkdir -p ~/.dependency-check-data
           if curl -fsSL --retry 3 -o /tmp/nvd-mirror.zip \
-              "https://github.com/ahincho/nova-devops/releases/download/nvd-mirror/dependency-check-data.zip"; then
+              "https://github.com/ahincho/nova-shared-02-pipelines/releases/download/nvd-mirror/dependency-check-data.zip"; then
             unzip -qo /tmp/nvd-mirror.zip -d ~/.dependency-check-data
-            echo "NVD mirror restored from ahincho/nova-devops (built at most ~24h ago)."
+            echo "NVD mirror restored from ahincho/nova-shared-02-pipelines (built at most ~24h ago)."
           else
             echo "::warning::Could not download the NVD mirror from nova-devops. Falling back to a direct (slower) sync against NVD."
           fi

@@ -64,7 +64,7 @@ Describe 'Lote Q: SHA-pinned (no @main or @vX on internal actions)' {
     foreach ($f in $script:loteRFiles) {
       $content = $script:contents[$f.name]
       if ([string]::IsNullOrEmpty($content)) { continue }
-      $hasMainPin = $content -match 'ahincho/nova-devops/\.github/(workflows|actions)/[a-z0-9-]+@main\b'
+      $hasMainPin = $content -match 'ahincho/nova-shared-02-pipelines/\.github/(workflows|actions)/[a-z0-9-]+@main\b'
       $hasMainPin | Should -BeFalse -Because "$($f.name): @main pin on internal ref"
     }
   }
@@ -73,7 +73,7 @@ Describe 'Lote Q: SHA-pinned (no @main or @vX on internal actions)' {
     foreach ($f in $script:loteRFiles) {
       $content = $script:contents[$f.name]
       if ([string]::IsNullOrEmpty($content)) { continue }
-      $hasVTag = $content -match 'ahincho/nova-devops/\.github/(workflows|actions)/[a-z0-9-]+@v\d+'
+      $hasVTag = $content -match 'ahincho/nova-shared-02-pipelines/\.github/(workflows|actions)/[a-z0-9-]+@v\d+'
       $hasVTag | Should -BeFalse -Because "$($f.name): @vX pin on internal ref"
     }
   }

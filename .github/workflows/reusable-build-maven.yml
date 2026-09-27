@@ -1,6 +1,6 @@
 # All uses: refs in this workflow are SHA-pinned (Lote Q hardening, see CHANGELOG.md).
 # - External actions: pinned to commit SHAs of the desired version tag
-# - Internal actions (ahincho/nova-devops/.github/actions/*): pinned to commit 300f6695c82197f50b2cfa0831bd146ed549a279
+# - Internal actions (ahincho/nova-shared-02-pipelines/.github/actions/*): pinned to commit 300f6695c82197f50b2cfa0831bd146ed549a279
 # To bump internal action SHAs after a nova-devops release: search/replace the SHA in this file.
 name: Reusable Build and Tests (Maven)
 
@@ -44,26 +44,26 @@ jobs:
 
       - name: Nova Resolve Token
         id: resolve_token
-        uses: ahincho/nova-devops/.github/actions/nova-resolve-token@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
+        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-resolve-token@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
         with:
           app-id: ${{ secrets.NOVA_PLATFORM_APP_ID }}
           app-private-key: ${{ secrets.NOVA_PLATFORM_APP_PRIVATE_KEY }}
 
       - name: Nova Setup Java
-        uses: ahincho/nova-devops/.github/actions/nova-setup-java@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
+        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-setup-java@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
         with:
           java-version: ${{ inputs.java-version }}
           build-tool: maven
           packages-read-token: ${{ steps.resolve_token.outputs.value }}
 
       - name: Nova Validate Build
-        uses: ahincho/nova-devops/.github/actions/nova-validate-build@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
+        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-validate-build@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
         with:
           min-java-version: ${{ inputs.java-version }}
 
       - name: Nova Gather Facts
         id: facts
-        uses: ahincho/nova-devops/.github/actions/nova-gather-facts@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
+        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-gather-facts@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
         with:
           version-source: file
           version-file: pom.xml

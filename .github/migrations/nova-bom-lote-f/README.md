@@ -1,12 +1,12 @@
 # Migration bundle: nova-bom from DEPRECATED publish flow to release-please + tag-driven flow
 
-**Source repo**: [ahincho/nova-bom](https://github.com/ahincho/nova-bom)
+**Source repo**: [ahincho/nova-java-13-bom](https://github.com/ahincho/nova-java-13-bom)
 **Triggered by**: nova-devops Lote F (DEPRECATED workflow migration)
 **Pinned SHA**: `300f6695c82197f50b2cfa0831bd146ed549a279` (refresh per nova-devops CHANGELOG.md Lote E)
 
 ## Why migrate
 
-`nova-bom/.github/workflows/publish.yml` calls `ahincho/nova-devops/.github/workflows/reusable-publish-maven.yml@main`, marked **DEPRECATED as of 2026-07-21**. The new flow:
+`nova-bom/.github/workflows/publish.yml` calls `ahincho/nova-shared-02-pipelines/.github/workflows/reusable-publish-maven.yml@main`, marked **DEPRECATED as of 2026-07-21**. The new flow:
 
 - Uses **release-please** to generate a release PR from Conventional Commits (no manual version bumps)
 - On merge, release-please pushes a `vX.Y.Z` tag
@@ -27,7 +27,7 @@
 
 ### Option A: Manual copy (safest)
 
-1. Clone the target repo: `git clone https://github.com/ahincho/nova-bom.git`
+1. Clone the target repo: `git clone https://github.com/ahincho/nova-java-13-bom.git`
 2. Create a branch: `git checkout -b lote-f-migration`
 3. **Delete** the old file: `rm .github/workflows/publish.yml`
 4. Copy the new files from this bundle into the target repo:
@@ -48,7 +48,7 @@
 ### Option B: gh CLI bundle (recommended)
 
 ```bash
-gh repo clone ahincho/nova-bom nova-bom-tmp
+gh repo clone ahincho/nova-java-13-bom nova-bom-tmp
 cd nova-bom-tmp
 git checkout -b lote-f-migration
 

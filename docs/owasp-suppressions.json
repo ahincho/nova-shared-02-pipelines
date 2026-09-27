@@ -18,7 +18,7 @@
       "fixed_in": "TBD",
       "affected_versions": ["*"],
       "consumer_repos": ["nova-java-observability-spring-boot-starter"],
-      "tracking": "https://github.com/ahincho/nova-java-observability-spring-boot-starter/pull/4"
+      "tracking": "https://github.com/ahincho/nova-java-09-observability-spring-boot-starter/pull/4"
     }
   ]
 }

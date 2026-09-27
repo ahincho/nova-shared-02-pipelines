@@ -1,6 +1,6 @@
 # Migration bundle: nova-java-spring-boot-parent from DEPRECATED inline publish to release-please + tag-driven flow
 
-**Source repo**: [ahincho/nova-java-spring-boot-parent](https://github.com/ahincho/nova-java-spring-boot-parent)
+**Source repo**: [ahincho/nova-java-14-spring-boot-parent](https://github.com/ahincho/nova-java-14-spring-boot-parent)
 **Triggered by**: nova-devops Lote F (DEPRECATED workflow migration)
 **Pinned SHA**: `300f6695c82197f50b2cfa0831bd146ed549a279` (refresh per nova-devops CHANGELOG.md Lote E)
 
@@ -35,7 +35,7 @@
 ### Recommended: gh CLI bundle
 
 ```bash
-gh repo clone ahincho/nova-java-spring-boot-parent nova-java-spring-boot-parent-tmp
+gh repo clone ahincho/nova-java-14-spring-boot-parent nova-java-spring-boot-parent-tmp
 cd nova-java-spring-boot-parent-tmp
 git checkout -b lote-f-migration
 
@@ -59,7 +59,7 @@ git commit -m "Lote F: migrate from inline publish workaround to release-please 
   reusable-release-maven-publish with NOVA_PACKAGES_READ_TOKEN for cross-repo reads
 - Add .release-please-config.json: release-please config for single package
 
-Refs: ahincho/nova-devops CHANGELOG.md Lote F"
+Refs: ahincho/nova-shared-02-pipelines CHANGELOG.md Lote F"
 
 git push -u origin lote-f-migration
 gh pr create --title "Lote F: migrate to release-please flow (remove inline workaround)" \

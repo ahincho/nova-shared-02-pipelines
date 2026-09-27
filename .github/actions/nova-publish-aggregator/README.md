@@ -45,7 +45,7 @@ Validated against `github.event.repository.visibility`:
 
 ```yaml
 - name: Publish to GitHub Packages
-  uses: ahincho/nova-devops/.github/actions/nova-publish-aggregator@main
+  uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-publish-aggregator@main
   with:
     registry: github-packages
     build-tool: gradle

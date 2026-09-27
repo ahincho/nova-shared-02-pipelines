@@ -41,7 +41,7 @@ steps:
 
   - name: Nova Setup Python
     id: python
-    uses: ahincho/nova-devops/.github/actions/nova-setup-python@<pinned-sha>
+    uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-setup-python@<pinned-sha>
 
   - name: Run a project script
     run: uv run --no-sync python scripts/check.py
