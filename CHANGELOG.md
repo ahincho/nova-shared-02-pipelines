@@ -4,6 +4,21 @@ All notable changes to `nova-devops`. The repo does **not** use SemVer - workflo
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## 2026-09-27 - Pull request CI runs again
+
+From 2026-07-21 no pull request in a Java repository got a working CI run. Two defects, both from the Lotes A-R-P hardening, stacked on each other.
+
+### Fixed
+- `nova-resolve-token` referenced the `secrets` context, which a composite action does not have, so GitHub refused to load it (`Unrecognized named-value: 'secrets'`) and every build, matrix, OWASP and SBOM job failed at that step. The PATs now arrive as inputs (`packages-read-token`, `legacy-token`), and `github-token` defaults to `github.token`. `GITHUB_TOKEN` also moves from second to last place: it is always present, so it used to win every time, and it cannot read another repository's packages.
+- The five callers pass both PATs and pin the action to `9b546b1`, the commit that fixes it.
+- Every reusable workflow built its concurrency group from `github.workflow`, which inside a called workflow is the caller's name. The build, matrix, OWASP, SBOM and Sonar workflows called by one CI run therefore shared a group and cancelled one another. Each group now carries the reusable's own name: twelve workflows change, and `reusable-package-retention.yml` already had its own group.
+- 8 Pester tests, among them a guard against the `secrets` context in the action and one that no two reusables share a group. Pester suite: 235 → 243.
+
+## 2026-09-27 - Publication check
+
+### Added
+- `.github/actions/nova-verify-publication/` - composite action that downloads the `.pom` and `.jar` (or whatever `extensions` lists) of every artifact a job has just published to GitHub Packages, and fails the job when one cannot be downloaded. A green publish step did not prove it in July, when the Quarkus extension was published five times without a downloadable artifact. It retries each file until `timeout-seconds` (default 300) and asks for nothing before the upload, so it cannot seed a cached 404. Every input is validated and reaches bash through env vars (Lote R). Called from each repository's `publish-on-tag.yml`, as ADR-039 in `nova-shared-01-docs` requires. 12 Pester tests. Pester suite: 223 → 235.
+
 ## 2026-09-23 - Python (uv) support
 
 ### Added
