@@ -4,6 +4,11 @@ All notable changes to `nova-devops`. The repo does **not** use SemVer - workflo
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## 2026-09-27 - Publication check
+
+### Added
+- `.github/actions/nova-verify-publication/` - composite action that downloads the `.pom` and `.jar` (or whatever `extensions` lists) of every artifact a job has just published to GitHub Packages, and fails the job when one cannot be downloaded. A green publish step did not prove it in July, when the Quarkus extension was published five times without a downloadable artifact. It retries each file until `timeout-seconds` (default 300) and asks for nothing before the upload, so it cannot seed a cached 404. Every input is validated and reaches bash through env vars (Lote R). Called from each repository's `publish-on-tag.yml`, as ADR-039 in `nova-shared-01-docs` requires. 12 Pester tests. Pester suite: 223 → 235.
+
 ## 2026-09-23 - Python (uv) support
 
 ### Added

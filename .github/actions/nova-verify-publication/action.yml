@@ -1,0 +1,100 @@
+# Inputs reach the run: block only through env vars (Lote R pattern).
+# The action calls no other action, so there is nothing to SHA-pin.
+#
+# Design notes:
+# - A green publish step is not proof that anything can be downloaded. In July
+#   2026 a Quarkus extension was published five times with the run green while
+#   maven.pkg.github.com answered 404 for its .pom and .jar (ADR-039 in
+#   nova-shared-01-docs). This action downloads what the job just published and
+#   fails the job when it cannot.
+# - Call it only after the publish step. It never asks for a path before the
+#   upload: a 404 served for a path requested too early may be cached, and the
+#   check would then fail on an artifact that is fine.
+# - Each file is retried until timeout-seconds, because a freshly uploaded file
+#   can take a few seconds to become downloadable.
+name: 'Verify Nova Publication'
+description: 'Download the artifacts a publish step just uploaded to GitHub Packages and fail the job if any of them cannot be downloaded'
+inputs:
+  group-id:
+    description: "Maven groupId of the published artifacts, e.g. 'pe.edu.nova.java.libs'"
+    required: true
+  artifact-ids:
+    description: 'Space-separated artifactIds the job published, one per module of a multi-module build'
+    required: true
+  version:
+    description: "Published version. A leading 'v' is stripped, so a tag such as 'v1.2.3' can be passed as-is."
+    required: true
+  extensions:
+    description: "Space-separated file extensions to download for each artifact. Use 'pom' alone for a BOM or a parent POM."
+    required: false
+    default: 'pom jar'
+  repository:
+    description: 'owner/name of the repository whose GitHub Packages registry holds the artifacts'
+    required: false
+    default: ${{ github.repository }}
+  token:
+    description: 'Token with packages: read on that repository, usually github.token'
+    required: true
+  timeout-seconds:
+    description: 'How long to keep retrying each file before failing'
+    required: false
+    default: '300'
+runs:
+  using: 'composite'
+  steps:
+    - name: Download what was published
+      shell: bash
+      env:
+        GROUP_ID: ${{ inputs.group-id }}
+        ARTIFACT_IDS: ${{ inputs.artifact-ids }}
+        VERSION: ${{ inputs.version }}
+        EXTENSIONS: ${{ inputs.extensions }}
+        REPOSITORY: ${{ inputs.repository }}
+        TOKEN: ${{ inputs.token }}
+        TIMEOUT_SECONDS: ${{ inputs.timeout-seconds }}
+      run: |
+        set -euo pipefail
+
+        version="${VERSION#v}"
+        fail() { echo "::error::$1"; exit 1; }
+        [[ "${GROUP_ID}" =~ ^[A-Za-z0-9_.-]+$ ]] || fail "group-id '${GROUP_ID}' is not a valid Maven groupId"
+        [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] || fail "version '${VERSION}' is not a release version"
+        [[ "${REPOSITORY}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || fail "repository '${REPOSITORY}' is not owner/name"
+        [[ "${TIMEOUT_SECONDS}" =~ ^[0-9]+$ ]] || fail "timeout-seconds '${TIMEOUT_SECONDS}' is not a number of seconds"
+        [ -n "${TOKEN}" ] || fail "token is empty"
+        [ -n "${ARTIFACT_IDS// /}" ] || fail "artifact-ids is empty"
+        for artifact in ${ARTIFACT_IDS}; do
+          [[ "${artifact}" =~ ^[A-Za-z0-9_.-]+$ ]] || fail "artifactId '${artifact}' is not valid"
+        done
+        for ext in ${EXTENSIONS}; do
+          [[ "${ext}" =~ ^[a-z0-9.]+$ ]] || fail "extension '${ext}' is not valid"
+        done
+
+        group_path="${GROUP_ID//.//}"
+        failed=0
+        for artifact in ${ARTIFACT_IDS}; do
+          for ext in ${EXTENSIONS}; do
+            file="${artifact}-${version}.${ext}"
+            url="https://maven.pkg.github.com/${REPOSITORY}/${group_path}/${artifact}/${version}/${file}"
+            start=$(date +%s)
+            while :; do
+              code=$(curl -sS -L -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${TOKEN}" "${url}" || true)
+              if [ "${code}" = "200" ]; then
+                echo "Downloadable: ${file}"
+                break
+              fi
+              if [ $(( $(date +%s) - start )) -ge "${TIMEOUT_SECONDS}" ]; then
+                echo "::error::${file} cannot be downloaded from GitHub Packages (last HTTP ${code}): ${url}"
+                failed=1
+                break
+              fi
+              sleep 15
+            done
+          done
+        done
+
+        if [ "${failed}" -ne 0 ]; then
+          echo "::error::The publish step reported success, but not everything it published can be downloaded."
+          exit 1
+        fi
+        echo "Every published file of ${GROUP_ID} ${version} can be downloaded."
