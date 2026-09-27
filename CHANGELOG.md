@@ -4,6 +4,11 @@ All notable changes to `nova-devops`. The repo does **not** use SemVer - workflo
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## 2026-09-27 - OWASP false positives of the Gradle plugin
+
+### Added
+- 12 entries in `docs/owasp-suppressions.json` for `nova-java-16-spring-boot-gradle-plugin`. NVD matches `io.spring.gradle:dependency-management-plugin` 1.1.7 as Spring Framework 1.1.7, which brings 11 Spring Framework CVEs (Spring4Shell among them), and `spring-boot-loader-tools` 4.0.8 as Spring Tools 4.0.8, which brings CVE-2022-31691 from the IDE extensions. Neither artifact is the product the CVE describes, and the GitHub Advisory Database has no advisory for either. Each entry names only its package, so the same CVE still fails any other artifact.
+
 ## 2026-09-27 - Pull request CI runs again
 
 From 2026-07-21 no pull request in a Java repository got a working CI run. Two defects, both from the Lotes A-R-P hardening, stacked on each other.
