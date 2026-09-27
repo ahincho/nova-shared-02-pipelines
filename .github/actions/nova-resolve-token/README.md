@@ -52,7 +52,7 @@ Doing the comparison in shell via `[ -n "${TOKEN_X}" ]` is correct and well-beha
    - `NOVA_PLATFORM_APP_PRIVATE_KEY` — paste the **entire contents** of the `.pem` file (multi-line is OK)
 4. Wire those secrets into the `nova-resolve-token` invocation in your workflows:
    ```yaml
-   - uses: ahincho/nova-devops/.github/actions/nova-resolve-token@<pinned-sha>
+   - uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-resolve-token@<pinned-sha>
      with:
        app-id: ${{ secrets.NOVA_PLATFORM_APP_ID }}
        app-private-key: ${{ secrets.NOVA_PLATFORM_APP_PRIVATE_KEY }}
@@ -75,13 +75,13 @@ Doing the comparison in shell via `[ -n "${TOKEN_X}" ]` is correct and well-beha
 ```yaml
 - name: Nova Resolve Token (GitHub App)
   id: resolve_token
-  uses: ahincho/nova-devops/.github/actions/nova-resolve-token@<pinned-sha>
+  uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-resolve-token@<pinned-sha>
   with:
     app-id: ${{ secrets.NOVA_PLATFORM_APP_ID }}
     app-private-key: ${{ secrets.NOVA_PLATFORM_APP_PRIVATE_KEY }}
 
 - name: Nova Setup Java
-  uses: ahincho/nova-devops/.github/actions/nova-setup-java@<pinned-sha>
+  uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-setup-java@<pinned-sha>
   with:
     java-version: '25'
     build-tool: gradle
@@ -93,7 +93,7 @@ Doing the comparison in shell via `[ -n "${TOKEN_X}" ]` is correct and well-beha
 ```yaml
 - name: Nova Resolve Token (PAT fallback)
   id: resolve_token
-  uses: ahincho/nova-devops/.github/actions/nova-resolve-token@<pinned-sha>
+  uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-resolve-token@<pinned-sha>
   # no `with:` block - App auth skipped, falls back to PAT
 ```
 

@@ -1,6 +1,6 @@
 ﻿# All `uses:` refs in this workflow are SHA-pinned (Lote Q hardening, see CHANGELOG.md).
 # - External actions: pinned to commit SHAs of the desired version tag
-# - Internal actions (ahincho/nova-devops/.github/actions/*): pinned to commit 300f6695c82197f50b2cfa0831bd146ed549a279
+# - Internal actions (ahincho/nova-shared-02-pipelines/.github/actions/*): pinned to commit 300f6695c82197f50b2cfa0831bd146ed549a279
 # To bump internal action SHAs after a nova-devops release: search/replace the SHA in this file.
 
 name: Publish on Tag
@@ -53,7 +53,7 @@ jobs:
   publish-gradle:
     name: Publish (Gradle)
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.build-tool != 'maven'
-    uses: ahincho/nova-devops/.github/workflows/reusable-release-publish.yml@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-release-publish.yml@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
     with:
       java-version: ${{ github.event.inputs.java-version || '25' }}
       dry-run: ${{ github.event.inputs.dry-run || 'false' }}
@@ -67,7 +67,7 @@ jobs:
   publish-maven:
     name: Publish (Maven)
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.build-tool == 'maven'
-    uses: ahincho/nova-devops/.github/workflows/reusable-release-maven-publish.yml@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-release-maven-publish.yml@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
     with:
       java-version: ${{ github.event.inputs.java-version || '25' }}
       dry-run: ${{ github.event.inputs.dry-run || 'false' }}

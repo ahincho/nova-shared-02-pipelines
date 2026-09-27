@@ -27,7 +27,7 @@ Validates Nova Platform build prerequisites before running Gradle or Maven.
 
 ```yaml
 - name: Validate build prerequisites
-  uses: ahincho/nova-devops/.github/actions/nova-validate-build@main
+  uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-validate-build@main
   with:
     min-java-version: '25'
 ```

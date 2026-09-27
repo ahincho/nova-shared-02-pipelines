@@ -220,7 +220,7 @@ Describe 'reusable-sonarcloud-{gradle,maven}.yml - SHA-pinned (Lote Q compliance
   }
 
   It 'No file has @main branch pins on internal actions (Lote Q superseded Lote P)' {
-    $script:gradleContent | Should -Not -Match 'ahincho/nova-devops/\.github/actions/[a-z-]+@main\b'
-    $script:mavenContent  | Should -Not -Match 'ahincho/nova-devops/\.github/actions/[a-z-]+@main\b'
+    $script:gradleContent | Should -Not -Match 'ahincho/nova-shared-02-pipelines/\.github/actions/[a-z-]+@main\b'
+    $script:mavenContent  | Should -Not -Match 'ahincho/nova-shared-02-pipelines/\.github/actions/[a-z-]+@main\b'
   }
 }

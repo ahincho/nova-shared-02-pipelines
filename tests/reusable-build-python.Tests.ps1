@@ -97,8 +97,8 @@ Describe 'reusable-build-python.yml - SHA pinning (Lote Q)' {
   }
 
   It 'uses nova-setup-python at the SHA the header comment declares' {
-    $header = [regex]::Match($script:wfText, 'Internal actions \(ahincho/nova-devops/\.github/actions/\*\): pinned to commit ([0-9a-f]{40})').Groups[1].Value
-    $used = [regex]::Match($script:wfText, 'uses:\s*ahincho/nova-devops/\.github/actions/nova-setup-python@([0-9a-f]{40})').Groups[1].Value
+    $header = [regex]::Match($script:wfText, 'Internal actions \(ahincho/nova-shared-02-pipelines/\.github/actions/\*\): pinned to commit ([0-9a-f]{40})').Groups[1].Value
+    $used = [regex]::Match($script:wfText, 'uses:\s*ahincho/nova-shared-02-pipelines/\.github/actions/nova-setup-python@([0-9a-f]{40})').Groups[1].Value
     $header | Should -Not -BeNullOrEmpty
     $used | Should -Be $header -Because 'a SHA bump must update the header and the uses: ref together'
   }

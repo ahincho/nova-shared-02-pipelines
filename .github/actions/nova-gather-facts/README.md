@@ -36,7 +36,7 @@ Collects build facts (version, branch, commit SHA, snapshot detection) and expos
 ```yaml
 - name: Gather build facts
   id: facts
-  uses: ahincho/nova-devops/.github/actions/nova-gather-facts@main
+  uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-gather-facts@main
 
 - name: Use facts
   run: |

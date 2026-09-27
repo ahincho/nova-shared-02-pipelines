@@ -49,31 +49,31 @@ $ErrorActionPreference = 'Stop'
 # Data: Descriptions (32 repos, English)
 # ============================================================
 $Descriptions = @{
-  'nova-bom'              = 'Root Bill of Materials (BOM) for the Nova Platform meta-framework. Centralizes dependency versions for Java, NestJS and future stacks.'
-  'nova-devops'           = 'Reusable GitHub Actions workflows for CI/CD of the Nova Platform meta-framework (build, quality, publish for Maven and Gradle).'
-  'nova-docs'             = 'Nova Platform meta-framework documentation: ADRs (shared, java, nest), technical guides (semantic versioning, maturity evaluation, archetype comparison) and operational automation scripts.'
-  'nova-infrastructure'   = 'Infrastructure as code (Docker Compose) for the Nova Platform observability stack: OpenTelemetry Collector, Tempo, Loki, Mimir, Pyroscope and Grafana.'
-  'nova-java-api-standard'                                   = 'Pure-Java library of API standards: ApiResponse/ApiError, HATEOAS links, PageInfo, FilterCriteria, RateLimitInfo, HttpStatusCode and UserAgentParser. Framework-agnostic.'
-  'nova-java-api-standard-quarkus-extension'                 = 'Quarkus extension that integrates nova-api-standard: ApiExceptionMapper + ApiObjectMapperCustomizer auto-wired.'
-  'nova-java-commons-spring-boot-starter'                    = 'Spring Boot starter that re-exports Nova pure libraries (api-standard, mask-utils) as auto-configured dependencies for Spring Boot applications.'
-  'nova-java-date-utils'                                     = 'Pure-Java date utilities library: formatting, parsing, relative date calculation and timezone helpers. No Spring dependency.'
-  'nova-java-example'                                        = 'Nova Java meta-framework instance/demo. Shows real usage of Nova pure libraries and starters.'
-  'nova-java-mapper-utils'                                   = 'Pure-Java object mapping library (MapStruct-like) and conversion helpers. No Spring dependency.'
-  'nova-java-mask-utils'                                     = 'Pure-Java library for sensitive data masking (credit cards, emails, phones). No Spring dependency.'
+  'nova-java-13-bom'              = 'Root Bill of Materials (BOM) for the Nova Platform meta-framework. Centralizes dependency versions for Java, NestJS and future stacks.'
+  'nova-shared-02-pipelines'           = 'Reusable GitHub Actions workflows for CI/CD of the Nova Platform meta-framework (build, quality, publish for Maven and Gradle).'
+  'nova-shared-01-docs'             = 'Nova Platform meta-framework documentation: ADRs (shared, java, nest), technical guides (semantic versioning, maturity evaluation, archetype comparison) and operational automation scripts.'
+  'nova-shared-03-infrastructure'   = 'Infrastructure as code (Docker Compose) for the Nova Platform observability stack: OpenTelemetry Collector, Tempo, Loki, Mimir, Pyroscope and Grafana.'
+  'nova-java-01-api-standard'                                   = 'Pure-Java library of API standards: ApiResponse/ApiError, HATEOAS links, PageInfo, FilterCriteria, RateLimitInfo, HttpStatusCode and UserAgentParser. Framework-agnostic.'
+  'nova-java-10-api-standard-quarkus-extension'                 = 'Quarkus extension that integrates nova-api-standard: ApiExceptionMapper + ApiObjectMapperCustomizer auto-wired.'
+  'nova-java-08-commons-spring-boot-starter'                    = 'Spring Boot starter that re-exports Nova pure libraries (api-standard, mask-utils) as auto-configured dependencies for Spring Boot applications.'
+  'nova-java-02-date-utils'                                     = 'Pure-Java date utilities library: formatting, parsing, relative date calculation and timezone helpers. No Spring dependency.'
+  'nova-java-20-example'                                        = 'Nova Java meta-framework instance/demo. Shows real usage of Nova pure libraries and starters.'
+  'nova-java-03-mapper-utils'                                   = 'Pure-Java object mapping library (MapStruct-like) and conversion helpers. No Spring dependency.'
+  'nova-java-04-mask-utils'                                     = 'Pure-Java library for sensitive data masking (credit cards, emails, phones). No Spring dependency.'
   'nova-java-notifications'                                  = 'Nova Notifications core library: pure-Java (no framework), framework-agnostic facade for Email/SMS/Push/Slack with Resilience4j-style retry+circuit-breaker+rate-limit. Published to GitHub Packages.'
   'nova-java-notifications-micronaut-module'                 = 'Micronaut 5 module for Nova Notifications. @Factory + @ConfigurationProperties under nova.notifications.* prefix; supports Micronaut AOT and Shadow JAR.'
   'nova-java-notifications-quarkus-extension'                = 'Quarkus 3.33 LTS extension for Nova Notifications. CDI @Singleton + SmallRye Config @ConfigMapping under nova.notifications.* prefix; ships META-INF/jandex.idx so Quarkus build-time scan discovers beans.'
   'nova-java-notifications-spring-boot-starter'              = 'Spring Boot 4.1 auto-configuration starter for Nova Notifications. Wires NotificationFacade, RestClient-based REST exposure, and @ConfigurationProperties under nova.notifications.* prefix.'
-  'nova-java-observability-spring-boot-starter'              = 'Spring Boot observability starter: Four Golden Signals (latency, traffic, errors, saturation), distributed tracing with OpenTelemetry and Spring Boot Actuator auto-configuration.'
-  'nova-java-observability-utils'                            = 'Pure-Java observability utilities library: metrics, traces and logs without Spring coupling. OpenTelemetry SDK helpers.'
-  'nova-java-quarkus-archetype'                              = 'Nova Platform Quarkus Maven archetype. Generates a multi-module (boot/product/shared) microservice skeleton on Java 25 + Quarkus 3.33.2.1 LTS.'
-  'nova-java-quarkus-example'                                = 'Quarkus instance of the Nova Platform meta-framework. Consumes nova-api-standard + nova-api-standard-quarkus-extension (twin of ahincho/nova-java-example, which is Spring Boot).'
-  'nova-java-quarkus-parent'                                 = 'Parent POM for Nova Platform Quarkus microservice instances. Centralizes Java 25 + Quarkus 3.33.2.1 LTS + plugins + nova-notifications-quarkus-extension dependency.'
-  'nova-java-quarkus-template'                               = 'Gradle template for microservice instances built on the Nova Platform meta-framework with Quarkus 3.33.x LTS. Multi-module (shared + product + boot), Java 25, wired with nova-notifications-quarkus-extension.'
-  'nova-java-spring-boot-archetype'                          = 'Maven archetype for generating a new Spring Boot project with Nova Platform meta-framework conventions and dependencies.'
-  'nova-java-spring-boot-gradle-plugin'                      = 'Nova Platform Gradle plugin for Spring Boot projects: applies build conventions, configures Java toolchain and Spring Boot plugin automatically.'
-  'nova-java-spring-boot-parent'                             = 'Parent POM for Spring Boot projects in the Nova Platform meta-framework: managed dependencies, plugins and centralized properties.'
-  'nova-java-spring-boot-starter'                            = 'Nova Platform Spring Boot meta-starter: bundles all Nova starters (commons, observability) and configures the application to use the meta-framework.'
+  'nova-java-09-observability-spring-boot-starter'              = 'Spring Boot observability starter: Four Golden Signals (latency, traffic, errors, saturation), distributed tracing with OpenTelemetry and Spring Boot Actuator auto-configuration.'
+  'nova-java-05-observability-utils'                            = 'Pure-Java observability utilities library: metrics, traces and logs without Spring coupling. OpenTelemetry SDK helpers.'
+  'nova-java-18-quarkus-archetype'                              = 'Nova Platform Quarkus Maven archetype. Generates a multi-module (boot/product/shared) microservice skeleton on Java 25 + Quarkus 3.33.2.1 LTS.'
+  'nova-java-21-quarkus-example'                                = 'Quarkus instance of the Nova Platform meta-framework. Consumes nova-api-standard + nova-api-standard-quarkus-extension (twin of ahincho/nova-java-20-example, which is Spring Boot).'
+  'nova-java-15-quarkus-parent'                                 = 'Parent POM for Nova Platform Quarkus microservice instances. Centralizes Java 25 + Quarkus 3.33.2.1 LTS + plugins + nova-notifications-quarkus-extension dependency.'
+  'nova-java-19-quarkus-template'                               = 'Gradle template for microservice instances built on the Nova Platform meta-framework with Quarkus 3.33.x LTS. Multi-module (shared + product + boot), Java 25, wired with nova-notifications-quarkus-extension.'
+  'nova-java-17-spring-boot-archetype'                          = 'Maven archetype for generating a new Spring Boot project with Nova Platform meta-framework conventions and dependencies.'
+  'nova-java-16-spring-boot-gradle-plugin'                      = 'Nova Platform Gradle plugin for Spring Boot projects: applies build conventions, configures Java toolchain and Spring Boot plugin automatically.'
+  'nova-java-14-spring-boot-parent'                             = 'Parent POM for Spring Boot projects in the Nova Platform meta-framework: managed dependencies, plugins and centralized properties.'
+  'nova-java-12-spring-boot-starter'                            = 'Nova Platform Spring Boot meta-starter: bundles all Nova starters (commons, observability) and configures the application to use the meta-framework.'
   'nova-nestjs-commons'                                      = 'Turborepo monorepo of common NestJS packages: nestjs-mask, nestjs-api-standard and nestjs-observability.'
   'nova-nestjs-observability-starter'                        = 'Dynamic NestJS observability module with OpenTelemetry: Four Golden Signals, distributed tracing, log correlation and OTLP exporters.'
   'nova-nestjs-parent'                                       = 'Shared configuration (TypeScript, ESLint, Prettier, Jest, TypeDoc) for NestJS projects in the Nova Platform meta-framework.'
@@ -87,11 +87,11 @@ $Descriptions = @{
 # Data: Topics (5 repos that are missing them)
 # ============================================================
 $Topics = @{
-  'nova-java-api-standard-quarkus-extension' = @('java', 'quarkus', 'quarkus-extension', 'nova-platform', 'library', 'framework-integration')
-  'nova-java-quarkus-archetype'              = @('java', 'maven', 'archetype', 'quarkus', 'nova-platform', 'microservice-template')
-  'nova-java-quarkus-example'                = @('java', 'quarkus', 'nova-platform', 'demo', 'example', 'microservice-instance')
-  'nova-java-quarkus-parent'                 = @('java', 'maven', 'parent-pom', 'quarkus', 'nova-platform', 'microservice-parent')
-  'nova-java-quarkus-template'               = @('java', 'gradle', 'template', 'quarkus', 'nova-platform', 'microservice-template')
+  'nova-java-10-api-standard-quarkus-extension' = @('java', 'quarkus', 'quarkus-extension', 'nova-platform', 'library', 'framework-integration')
+  'nova-java-18-quarkus-archetype'              = @('java', 'maven', 'archetype', 'quarkus', 'nova-platform', 'microservice-template')
+  'nova-java-21-quarkus-example'                = @('java', 'quarkus', 'nova-platform', 'demo', 'example', 'microservice-instance')
+  'nova-java-15-quarkus-parent'                 = @('java', 'maven', 'parent-pom', 'quarkus', 'nova-platform', 'microservice-parent')
+  'nova-java-19-quarkus-template'               = @('java', 'gradle', 'template', 'quarkus', 'nova-platform', 'microservice-template')
 }
 
 # ============================================================

@@ -41,7 +41,7 @@ concurrency:
 
 jobs:
   publish:
-    uses: ahincho/nova-devops/.github/workflows/reusable-release-maven-publish.yml@main # pinned to stable; see CHANGELOG Lote P
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-release-maven-publish.yml@main # pinned to stable; see CHANGELOG Lote P
     with:
       java-version: ${{ github.event.inputs.java-version || '25' }}
       dry-run: ${{ github.event.inputs.dry-run || 'false' }}

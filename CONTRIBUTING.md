@@ -4,7 +4,7 @@ Thanks for your interest in improving the CI/CD infrastructure that powers ~30 N
 
 ## Scope of this repo
 
-`nova-devops` ships **reusable GitHub Actions workflows** and **composite actions** consumed via `ahincho/nova-devops/.github/{workflows,actions}/...@main` by every Java + NestJS library in the ecosystem. A change here propagates to every downstream repository on the next CI run.
+`nova-devops` ships **reusable GitHub Actions workflows** and **composite actions** consumed via `ahincho/nova-shared-02-pipelines/.github/{workflows,actions}/...@main` by every Java + NestJS library in the ecosystem. A change here propagates to every downstream repository on the next CI run.
 
 ## Branching & commits
 
