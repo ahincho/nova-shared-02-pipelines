@@ -100,7 +100,7 @@ jobs:
 
       - name: Nova Resolve Token
         id: resolve_token
-        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-resolve-token@300f6695c82197f50b2cfa0831bd146ed549a279  # @main (Lote Q SHA-pin)
+        uses: ahincho/nova-shared-02-pipelines/.github/actions/nova-resolve-token@5b64e8a044159cb7f8bf195818cf0c14c6e71d1e  # @main (Lote Q SHA-pin)
         with:
           app-id: ${{ secrets.NOVA_PLATFORM_APP_ID }}
           app-private-key: ${{ secrets.NOVA_PLATFORM_APP_PRIVATE_KEY }}
