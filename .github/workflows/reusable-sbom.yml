@@ -114,7 +114,7 @@ jobs:
 
       - name: Generate SBOM with syft (Gradle fallback)
         if: inputs.build-tool == 'gradle' && steps.gradle-sbom-engine.outputs.engine == 'syft'
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0 (was anchore/sbom-action@v0 (was anchore/syft-action@v1), deprecated)
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26  # v0 (was anchore/sbom-action@v0 (was anchore/syft-action@v1), deprecated)
         with:
           image: dir://${{ github.workspace }}
           format: cyclonedx-${{ inputs.sbom-format }}
