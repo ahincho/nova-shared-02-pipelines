@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Aplica Esquema B de labels a los 32 repos Nova Platform + demos.
+  Aplica Esquema B de labels a los 32 repos de Nova Platform.
 
 .DESCRIPTION
   Estandariza el esquema de labels:
@@ -108,33 +108,32 @@ $RepoLabels = @{
 
   'nova-java-01-api-standard'                    = @('nova-platform', 'type:library', 'lifecycle:stable', 'framework:java-pure', 'area:api-standard', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-10-api-standard-quarkus-extension'  = @('nova-platform', 'type:extension', 'lifecycle:beta', 'framework:quarkus', 'area:api-standard', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies', 'autorelease: pending', 'autorelease: tagged')
+  'nova-java-11-keycloak-quarkus-extension'      = @('nova-platform', 'type:extension', 'lifecycle:experimental', 'framework:quarkus', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-08-commons-spring-boot-starter'     = @('nova-platform', 'type:starter', 'lifecycle:stable', 'framework:spring-boot', 'area:common', 'area:api-standard', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-02-date-utils'                      = @('nova-platform', 'type:library', 'lifecycle:stable', 'framework:java-pure', 'area:common', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-example-01-spring-boot-reference'                         = @('nova-platform', 'type:instance', 'lifecycle:stable', 'framework:spring-boot', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
+  'nova-example-02-spring-boot-ms-course'                         = @('nova-platform', 'type:instance', 'lifecycle:stable', 'framework:spring-boot', 'area:observability', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
+  'nova-example-03-spring-boot-ms-forum'                          = @('nova-platform', 'type:instance', 'lifecycle:stable', 'framework:spring-boot', 'area:observability', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-03-mapper-utils'                    = @('nova-platform', 'type:library', 'lifecycle:stable', 'framework:java-pure', 'area:common', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-04-mask-utils'                      = @('nova-platform', 'type:library', 'lifecycle:stable', 'framework:java-pure', 'area:common', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
-  'nova-java-notifications'                   = @('nova-platform', 'type:library', 'lifecycle:stable', 'framework:java-pure', 'framework:gradle', 'area:notifications', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies', 'autorelease: pending', 'autorelease: tagged')
-  'nova-java-notifications-micronaut-module'  = @('nova-platform', 'type:module', 'lifecycle:beta', 'framework:micronaut', 'framework:gradle', 'area:notifications', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies', 'autorelease: pending', 'autorelease: tagged')
-  'nova-java-notifications-quarkus-extension' = @('nova-platform', 'type:extension', 'lifecycle:beta', 'framework:quarkus', 'framework:gradle', 'area:notifications', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies', 'autorelease: pending', 'autorelease: tagged')
-  'nova-java-notifications-spring-boot-starter' = @('nova-platform', 'type:starter', 'lifecycle:beta', 'framework:spring-boot', 'framework:gradle', 'area:notifications', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies', 'autorelease: pending', 'autorelease: tagged')
   'nova-java-09-observability-spring-boot-starter' = @('nova-platform', 'type:starter', 'lifecycle:stable', 'framework:spring-boot', 'area:observability', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-05-observability-utils'             = @('nova-platform', 'type:library', 'lifecycle:stable', 'framework:java-pure', 'area:observability', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
+  'nova-java-06-keycloak'                        = @('nova-platform', 'type:library', 'lifecycle:experimental', 'framework:java-pure', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
+  'nova-java-07-architecture-rules'              = @('nova-platform', 'type:library', 'lifecycle:stable', 'framework:java-pure', 'area:common', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-18-quarkus-archetype'               = @('nova-platform', 'type:archetype', 'lifecycle:stable', 'framework:quarkus', 'framework:maven', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-example-04-quarkus-reference'                 = @('nova-platform', 'type:instance', 'lifecycle:stable', 'framework:quarkus', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
+  'nova-example-05-quarkus-ms-course'                 = @('nova-platform', 'type:instance', 'lifecycle:stable', 'framework:quarkus', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
+  'nova-example-06-quarkus-code-with-nova'            = @('nova-platform', 'type:instance', 'lifecycle:stable', 'framework:quarkus', 'area:api-standard', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-15-quarkus-parent'                  = @('nova-platform', 'type:parent-pom', 'lifecycle:stable', 'framework:quarkus', 'framework:maven', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-19-quarkus-template'                = @('nova-platform', 'type:template', 'lifecycle:stable', 'framework:quarkus', 'framework:gradle', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-17-spring-boot-archetype'           = @('nova-platform', 'type:archetype', 'lifecycle:stable', 'framework:spring-boot', 'framework:maven', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-16-spring-boot-gradle-plugin'       = @('nova-platform', 'type:plugin', 'lifecycle:stable', 'framework:spring-boot', 'framework:gradle', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-14-spring-boot-parent'              = @('nova-platform', 'type:parent-pom', 'lifecycle:stable', 'framework:spring-boot', 'framework:maven', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
   'nova-java-12-spring-boot-starter'             = @('nova-platform', 'type:meta-starter', 'lifecycle:stable', 'framework:spring-boot', 'area:common', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
-  'nova-nestjs-commons'                       = @('nova-platform', 'type:library', 'lifecycle:beta', 'framework:nestjs', 'area:common', 'area:api-standard', 'area:observability', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
-  'nova-nestjs-observability-starter'         = @('nova-platform', 'type:starter', 'lifecycle:beta', 'framework:nestjs', 'area:observability', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
-  'nova-nestjs-parent'                        = @('nova-platform', 'type:docs', 'lifecycle:stable', 'framework:nestjs', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
-  'nova-nestjs-starter'                       = @('nova-platform', 'type:meta-starter', 'lifecycle:beta', 'framework:nestjs', 'area:common', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
-
-  'demo-notifications-micronaut'    = @('nova-platform', 'type:demo', 'lifecycle:stable', 'framework:micronaut', 'framework:gradle', 'area:notifications', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
-  'demo-notifications-quarkus'      = @('nova-platform', 'type:demo', 'lifecycle:stable', 'framework:quarkus', 'framework:gradle', 'area:notifications', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
-  'demo-notifications-spring-boot'  = @('nova-platform', 'type:demo', 'lifecycle:stable', 'framework:spring-boot', 'framework:gradle', 'area:notifications', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
+  'nova-nestjs-01-platform'                      = @('nova-platform', 'type:meta-starter', 'lifecycle:beta', 'framework:nestjs', 'area:common', 'area:api-standard', 'area:observability', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
+  'nova-nestjs-02-profile-utp'                   = @('nova-platform', 'type:module', 'lifecycle:experimental', 'framework:nestjs', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
+  'nova-example-07-nestjs-reference'             = @('nova-platform', 'type:instance', 'lifecycle:beta', 'framework:nestjs', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
+  'nova-example-08-nestjs-generated'             = @('nova-platform', 'type:instance', 'lifecycle:beta', 'framework:nestjs', 'priority:critical', 'priority:high', 'priority:medium', 'priority:low', 'breaking-change', 'security', 'dependencies')
 }
 
 # ============================================================
@@ -221,7 +220,7 @@ function Get-ExistingLabels {
 try {
   Test-GhCli
 
-  Write-Banner 'Apply Scheme B labels to 32 Nova Platform + demo repos'
+  Write-Banner 'Apply Scheme B labels to 32 Nova Platform repos'
   $repos = @($RepoLabels.Keys | Sort-Object)
   Write-Info "Repos a procesar: $($repos.Count)"
 

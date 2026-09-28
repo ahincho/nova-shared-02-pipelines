@@ -4,6 +4,18 @@ All notable changes to `nova-devops`. The repo does **not** use SemVer - workflo
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## 2026-09-28 - Metadata and label scripts match the 32 repositories
+
+`scripts/apply-nova-labels.ps1` and `scripts/apply-nova-metadata.ps1` each listed 32 repositories, but 11 of them no longer existed and 11 that exist were missing.
+
+### Removed
+- The four NestJS repositories from before the three-package collapse (`nova-nestjs-commons`, `-observability-starter`, `-parent` and `-starter`), deleted on 2026-09-28.
+- The four `nova-java-notifications*` repositories and the three `demo-notifications-*` ones, which no longer exist.
+
+### Added
+- Examples 02, 03, 05, 06, 07 and 08, `nova-java-06-keycloak`, `nova-java-07-architecture-rules`, `nova-java-11-keycloak-quarkus-extension`, `nova-nestjs-01-platform` and `nova-nestjs-02-profile-utp`. Each gets its type, lifecycle, framework and area labels plus the standard tail; the description is the one the repository has on GitHub today.
+- Topics for `nova-example-08-nestjs-generated` and `nova-nestjs-02-profile-utp`, the two repositories with none, taken from their siblings.
+
 ## 2026-09-27 - OWASP false positives of the Gradle plugin
 
 ### Added
