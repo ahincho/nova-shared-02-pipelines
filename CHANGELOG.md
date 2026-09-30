@@ -4,6 +4,13 @@ All notable changes to `nova-devops`. The repo does **not** use SemVer - workflo
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## 2026-09-30 - OWASP report upload for Gradle repositories
+
+The `Upload OWASP Report` step of `reusable-owasp-check.yml` never found the report of a Gradle repository, so the `owasp-dependency-check-report` artifact was not uploaded. In job 109773891663 of `nova-plaza-03-spring-boot-orders` the log says `Writing HTML report to: .../build/reports/dependency-check-report.html` and then `No files were found with the provided path`.
+
+### Fixed
+- The step looked for `**/build/reports/dependency-check/dependency-check-report.html`. The `org.owasp.dependencycheck` Gradle plugin, which `NovaSecurity` applies in `nova-java-24-gradle-toolchain`, writes `build/reports/dependency-check-report.html`, and no Gradle repository sets `outputDirectory`. The pattern is now `**/build/reports/dependency-check-report.html`; the Maven one, `**/target/dependency-check-report.html`, stays.
+
 ## 2026-09-28 - Metadata and label scripts match the 32 repositories
 
 `scripts/apply-nova-labels.ps1` and `scripts/apply-nova-metadata.ps1` each listed 32 repositories, but 11 of them no longer existed and 11 that exist were missing.
