@@ -215,6 +215,34 @@ Runs [release-please](https://github.com/googleapis/release-please) from Google 
 
 **Secrets required:** `GH_TOKEN` (with `contents:write` and `pull-requests:write`).
 
+### Repository Hygiene
+
+#### `reusable-main-guard.yml`
+Flags commits that reach a branch without going through a merged pull request. Private repositories on GitHub's free plan cannot use branch protection or rulesets, so a direct push to `main` cannot be rejected; this workflow makes it visible instead. On every push it asks GitHub for the merged pull request associated with the commit, retrying while the association catches up with the merge. When there is none, it leaves a comment on the commit mentioning whoever pushed it and fails the run.
+
+| Input | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `retries` | number | no | `3` | Attempts to find the pull request before giving up |
+| `retry-delay-seconds` | number | no | `10` | Seconds between attempts |
+| `message` | string | no | English text | Comment left on the commit, after the mention, so each repository can use its own language |
+
+The caller must grant `contents: write` and `pull-requests: read`.
+
+```yaml
+name: Guard main
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+  pull-requests: read
+jobs:
+  guard:
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-main-guard.yml@<sha>
+```
+
+It complements branch protection, it does not replace it: the commit is already on the branch when the run turns red. Pair it with a local `pre-push` hook that refuses pushes to `main`.
+
 ### Standalone Workflows
 
 These workflows are not reusable. They run directly in this repository.

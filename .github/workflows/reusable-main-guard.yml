@@ -1,0 +1,84 @@
+name: Reusable Main Guard
+
+description: |
+  Flags commits that reach a protected branch without going through a
+  merged pull request. Meant for private repositories on GitHub's free
+  plan, where branch protection and rulesets are not available: it cannot
+  reject the push, but it turns the run red and leaves a comment on the
+  commit naming who pushed it, so the bypass is visible right away.
+  Call it from a workflow triggered by `push` on the branch to guard.
+
+on:
+  workflow_call:
+    inputs:
+      retries:
+        description: 'How many times to ask GitHub for the pull request of the commit before giving up. The association can lag a few seconds behind the merge.'
+        required: false
+        type: number
+        default: 3
+      retry-delay-seconds:
+        description: 'Seconds to wait between attempts.'
+        required: false
+        type: number
+        default: 10
+      message:
+        description: 'Comment left on an offending commit, after a mention of whoever pushed it. Lets each repository write it in its own language.'
+        required: false
+        type: string
+        default: 'this commit reached the branch without a pull request. Every change goes through a pull request, where CI runs and conflicts with other open pull requests show up before merging. Next time, push your work to a branch and open the pull request from it.'
+
+# IMPORTANT: the CALLER workflow must declare `contents: write` (to comment
+# on the commit) and `pull-requests: read` in its own permissions block.
+# Reusable workflows inherit the INTERSECTION of caller + reusable
+# permissions.
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  guard:
+    name: Check the commit came from a pull request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Inputs and context values go through env, never interpolated into
+      # the script, so a branch name or actor login cannot inject code.
+      - name: Look up the merged pull request of the commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          RETRIES: ${{ inputs.retries }}
+          DELAY: ${{ inputs.retry-delay-seconds }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          prs=""
+          for attempt in $(seq 1 "$RETRIES"); do
+            prs=$(gh api "repos/$REPO/commits/$SHA/pulls" \
+              --jq '[.[] | select(.merged_at != null) | "#\(.number)"] | join(", ")')
+            if [ -n "$prs" ]; then
+              break
+            fi
+            if [ "$attempt" -lt "$RETRIES" ]; then
+              sleep "$DELAY"
+            fi
+          done
+
+          if [ -n "$prs" ]; then
+            echo "Commit $SHA reached $BRANCH through $prs."
+            echo "Commit \`$SHA\` reached \`$BRANCH\` through $prs." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          body="@$ACTOR $MESSAGE"
+          gh api "repos/$REPO/commits/$SHA/comments" -f body="$body" > /dev/null
+
+          {
+            echo "### Commit pushed to \`$BRANCH\` without a pull request"
+            echo
+            echo "\`$SHA\` was pushed by @$ACTOR and is not associated with any merged pull request. A comment was left on the commit."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::Commit $SHA was pushed to $BRANCH by $ACTOR without a pull request."
+          exit 1
