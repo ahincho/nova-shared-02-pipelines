@@ -4,6 +4,13 @@ All notable changes to `nova-devops`. The repo does **not** use SemVer - workflo
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## 2026-10-02 - Guard for commits that skip pull requests
+
+Two commits reached `main` of a private consumer repository without a pull request in a few hours, and each one left every open pull request out of date. Branch protection and rulesets are not available on the organization's free plan, so GitHub cannot reject those pushes.
+
+### Added
+- `reusable-main-guard.yml`: on a push to a guarded branch, looks up the merged pull request of the commit and, when there is none, comments on the commit mentioning whoever pushed it and fails the run. The comment text is an input, so each repository writes it in its own language.
+
 ## 2026-09-30 - OWASP report upload for Gradle repositories
 
 The `Upload OWASP Report` step of `reusable-owasp-check.yml` never found the report of a Gradle repository, so the `owasp-dependency-check-report` artifact was not uploaded. In job 109773891663 of `nova-plaza-03-spring-boot-orders` the log says `Writing HTML report to: .../build/reports/dependency-check-report.html` and then `No files were found with the provided path`.
