@@ -27,6 +27,32 @@ on:
       GH_TOKEN:
         required: true
         description: 'Token with contents:write and pull-requests:write permissions'
+    # A release created with GITHUB_TOKEN does not trigger other workflows, so a
+    # caller that builds or publishes something for the release has to do it in
+    # a job of the same run, gated on these outputs. The single-package ones
+    # describe the package at the repository root (path ".").
+    outputs:
+      release-created:
+        description: "'true' when this run created the release of the root package; empty otherwise"
+        value: ${{ jobs.release-please.outputs.release-created }}
+      releases-created:
+        description: "'true' when this run created at least one release, in any package; 'false' otherwise"
+        value: ${{ jobs.release-please.outputs.releases-created }}
+      paths-released:
+        description: 'JSON array with the path of every package released in this run'
+        value: ${{ jobs.release-please.outputs.paths-released }}
+      tag-name:
+        description: 'Tag of the root package release (e.g. v1.2.0)'
+        value: ${{ jobs.release-please.outputs.tag-name }}
+      version:
+        description: 'Version of the root package release, without the v (e.g. 1.2.0)'
+        value: ${{ jobs.release-please.outputs.version }}
+      sha:
+        description: 'Commit the root package release was tagged on'
+        value: ${{ jobs.release-please.outputs.sha }}
+      pr-created:
+        description: "'true' when this run opened or updated a release PR"
+        value: ${{ jobs.release-please.outputs.pr-created }}
 
 # release-please creates release PRs and updates CHANGELOG/version files.
 permissions:
@@ -45,6 +71,14 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    outputs:
+      release-created: ${{ steps.release.outputs.release_created }}
+      releases-created: ${{ steps.release.outputs.releases_created }}
+      paths-released: ${{ steps.release.outputs.paths_released }}
+      tag-name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+      sha: ${{ steps.release.outputs.sha }}
+      pr-created: ${{ steps.release.outputs.prs_created }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -62,6 +96,7 @@ jobs:
       # skip-snapshot:true in the config file - it was never read.
 
       - name: Run release-please
+        id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5
         with:
           token: ${{ secrets.GH_TOKEN }}
