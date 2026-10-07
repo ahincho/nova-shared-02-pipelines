@@ -204,16 +204,46 @@ This is the **official** publication path for Maven projects as of Sprint 3. It 
 #### `reusable-release-please.yml`
 Runs [release-please](https://github.com/googleapis/release-please) from Google to automate Conventional Commits-based releases. On every push to the target branch, it analyzes commit history, opens (or updates) a release PR that bumps the version, updates `CHANGELOG.md`, and merges it to create a GitHub Release and a `vX.Y.Z` tag. The tag then triggers the publish pipeline.
 
+The release type, package name and every other per-package setting come from `.release-please-config.json`, not from inputs (see the note in the workflow).
+
 | Input | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `release-type` | string | no | `'java'` | One of `java`, `gradle`, `maven`, `python`, `node`, `go`, `rust`, `php`, `ruby`, `elixir` |
-| `package-name` | string | no | repo name | Package name (for multi-package repos) |
+| `path` | string | no | `'.'` | Path inside the repo where the config lives |
 | `config-file` | string | no | `'.release-please-config.json'` | Path to release-please config |
-| `manifest-file` | string | no | `''` | Path to release-please manifest (multi-repo) |
-| `node-version` | string | no | `'20'` | Node.js version |
+| `manifest-file` | string | no | `''` | Path to release-please manifest (multi-package) |
 | `target-branch` | string | no | `'main'` | Target branch for release PRs |
 
 **Secrets required:** `GH_TOKEN` (with `contents:write` and `pull-requests:write`).
+
+| Output | Description |
+|---|---|
+| `release-created` | `'true'` when this run created the release of the root package (path `.`); empty otherwise |
+| `releases-created` | `'true'` when this run created at least one release, in any package; `'false'` otherwise |
+| `paths-released` | JSON array with the path of every package released in this run, ready for `fromJSON` in a matrix |
+| `tag-name` | Tag of the root package release, e.g. `v1.2.0` |
+| `version` | Version of the root package release, without the `v`, e.g. `1.2.0` |
+| `sha` | Commit the root package release was tagged on |
+| `pr-created` | `'true'` when this run opened or updated a release PR |
+
+A release created with `GITHUB_TOKEN` does not trigger other workflows, so a tag-push or `on: release` workflow never runs after it. A caller that passes `GITHUB_TOKEN` and has to build or publish something for the release does it in a job of the same run, gated on these outputs:
+
+```yaml
+jobs:
+  release-please:
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-release-please.yml@main
+    secrets:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.release-created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag-name }}
+      # build and upload the assets of the release
+```
 
 ### Repository Hygiene
 

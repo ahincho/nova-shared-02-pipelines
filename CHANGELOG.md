@@ -4,6 +4,17 @@ All notable changes to `nova-devops`. The repo does **not** use SemVer - workflo
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## 2026-10-07 - Outputs for release-please
+
+`reusable-release-please.yml` declared no outputs, so a caller could not tell whether the run had created a release. That matters because a release created with `GITHUB_TOKEN` does not trigger other workflows: a tag-push or `on: release` workflow never runs after it, so a caller that passes `GITHUB_TOKEN` can only build the release assets in the same run, and for that it needs to know that the release exists.
+
+### Added
+- Seven outputs, taken from `googleapis/release-please-action`: `release-created`, `releases-created`, `paths-released`, `tag-name`, `version`, `sha` and `pr-created`. Existing callers do not change. First consumer: `curriculum-vitae`, which compiles each CV and publishes it as its own release when the release PR is merged.
+- 6 Pester tests in `tests/reusable-release-please.Tests.ps1`. Pester suite: 252 → 258.
+
+### Fixed
+- The README listed `release-type`, `package-name` and `node-version` as inputs, which the workflow does not have, and left out `path`. The table now matches the workflow.
+
 ## 2026-10-02 - Guard for commits that skip pull requests
 
 Two commits reached `main` of a private consumer repository without a pull request in a few hours, and each one left every open pull request out of date. Branch protection and rulesets are not available on the organization's free plan, so GitHub cannot reject those pushes.
