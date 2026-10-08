@@ -175,6 +175,8 @@ The caller tunes the rules in its own `.chktexrc`. A typical one turns off the w
 CmdLine { -n1 -n8 }
 ```
 
+chktex is the version of the runner's Ubuntu (1.7.8 on 24.04), which can differ from a local MiKTeX or TeX Live (1.7.9 in October 2026) and report a few warnings the local run does not. To silence one false positive without disabling the warning everywhere, end that line with `% chktex <number>`, with a space before the `%` so the comment does not swallow the line break.
+
 #### `reusable-latex-build.yml`
 Compiles a LaTeX project inside the TeX Live image of [xu-cheng/texlive-action](https://github.com/xu-cheng/texlive-action) and, when `artifact-name` is set, uploads the result. The build command is the caller's (a script, `latexmk` or a plain `pdflatex` call), so the recipe does not assume a layout. To build several documents, call it from a matrix: one job per document.
 
