@@ -1,0 +1,78 @@
+# All uses: refs in this workflow are SHA-pinned (Lote Q hardening, see CHANGELOG.md).
+# - External actions: pinned to commit SHAs of the desired version tag
+#
+# Compiles a LaTeX project inside the TeX Live image of xu-cheng/texlive-action
+# and, optionally, uploads the result as an artifact. The caller passes its own
+# build command, so the same recipe serves latexmk, a build script or a plain
+# pdflatex call. To build several documents, call it from a matrix: one job
+# per document, each with its own command and artifact.
+#
+# `command` is code by design: it runs as given, inside the container. Only the
+# caller's workflow sets it, never data from an issue, a PR title or a branch.
+#
+# There is no workflow-level concurrency on purpose. Inside a called
+# workflow, github.workflow resolves to the caller's name, so a group here
+# can collide with the caller's own group and GitHub cancels the run as a
+# deadlock. A matrix also calls this workflow once per document, and a shared
+# group would cancel all but one. Concurrency is left to the caller.
+name: Reusable LaTeX Build (TeX Live)
+
+on:
+  workflow_call:
+    inputs:
+      command:
+        description: "Build command, run from the repository root inside the TeX Live container (e.g. 'latexmk -pdf main.tex')"
+        required: false
+        type: string
+        default: './scripts/build.sh'
+      scheme:
+        description: "TeX Live scheme of the image: 'full' or 'small' (the only two texlive-action ships)"
+        required: false
+        type: string
+        default: 'full'
+      artifact-name:
+        description: 'Name of the artifact to upload. Empty skips the upload'
+        required: false
+        type: string
+        default: ''
+      artifact-path:
+        description: 'Files to upload as the artifact (glob, one or more lines)'
+        required: false
+        type: string
+        default: 'build/*.pdf'
+      retention-days:
+        description: 'Days GitHub keeps the artifact'
+        required: false
+        type: number
+        default: 30
+
+# Read-only: compiles and uploads an artifact, which needs no token scope.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (LaTeX)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compile
+        uses: xu-cheng/texlive-action@22c04326a5d855880f9d39bb955138bf11c6df80  # v3
+        with:
+          scheme: ${{ inputs.scheme }}
+          run: ${{ inputs.command }}
+
+      - name: Upload artifact
+        if: inputs.artifact-name != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.artifact-path }}
+          retention-days: ${{ inputs.retention-days }}
+          if-no-files-found: error
