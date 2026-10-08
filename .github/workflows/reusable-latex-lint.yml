@@ -1,0 +1,108 @@
+# All uses: refs in this workflow are SHA-pinned (Lote Q hardening, see CHANGELOG.md).
+# - External actions: pinned to commit SHAs of the desired version tag
+#
+# Lints the LaTeX sources of the caller with chktex. Every warning becomes a
+# GitHub annotation on the line it points to, and the run fails when there is
+# at least one (unless fail-on-warnings is false). The caller tunes the rules
+# with its own .chktexrc, typically disabling the warnings that clash with
+# its house style.
+#
+# chktex comes from Ubuntu's package, not from a TeX Live image: the lint job
+# then takes seconds instead of pulling a multi-gigabyte container.
+#
+# There is no workflow-level concurrency on purpose. Inside a called
+# workflow, github.workflow resolves to the caller's name, so a group here
+# can collide with the caller's own group and GitHub cancels the run as a
+# deadlock. Concurrency is left to the caller, which knows its triggers.
+name: Reusable LaTeX Lint (chktex)
+
+on:
+  workflow_call:
+    inputs:
+      paths:
+        description: >-
+          Space-separated git pathspecs of the files to lint, matched against
+          the tracked files. The default '*.tex' matches every .tex file in
+          the repository, in any folder.
+        required: false
+        type: string
+        default: '*.tex'
+      config-file:
+        description: 'chktex resource file of the caller, loaded when it exists'
+        required: false
+        type: string
+        default: '.chktexrc'
+      fail-on-warnings:
+        description: 'Fail the job when chktex reports at least one warning'
+        required: false
+        type: boolean
+        default: true
+
+# Read-only: just reads the sources.
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint (chktex)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install chktex
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends chktex
+          chktex --version < /dev/null | head -n 1
+
+      # chktex exits 2 when it finds warnings, so its status is not used:
+      # the warnings are counted from the annotations instead. stdin is
+      # closed because chktex reads it when it has nothing else to read.
+      - name: Run chktex
+        env:
+          PATHS: ${{ inputs.paths }}
+          CONFIG_FILE: ${{ inputs.config-file }}
+          FAIL_ON_WARNINGS: ${{ inputs.fail-on-warnings }}
+        run: |
+          set -euo pipefail
+          read -r -a specs <<< "$PATHS"
+          mapfile -t files < <(git ls-files -- "${specs[@]}")
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No tracked file matches: $PATHS"
+            exit 1
+          fi
+
+          # -I0: every file is linted on its own, so chktex must not follow
+          # \input into the others (it would report them twice, and fails
+          # on paths built from macros, like content/\lang/section).
+          args=(-q -v0 -I0)
+          if [ -f "$CONFIG_FILE" ]; then
+            args+=(-l "$CONFIG_FILE")
+            echo "Using $CONFIG_FILE"
+          else
+            echo "No $CONFIG_FILE found: using chktex's default rules"
+          fi
+
+          format=$'::warning file=%f,line=%l,col=%c,title=chktex %n::%m\n'
+          count=0
+          for file in "${files[@]}"; do
+            out="$(chktex "${args[@]}" -f "$format" "$file" < /dev/null || true)"
+            if [ -n "$out" ]; then
+              printf '%s\n' "$out"
+              count=$((count + $(printf '%s\n' "$out" | grep -c '^::warning')))
+            fi
+          done
+
+          echo "chktex: ${#files[@]} files, $count warnings" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$count" -gt 0 ] && [ "$FAIL_ON_WARNINGS" = 'true' ]; then
+            exit 1
+          fi

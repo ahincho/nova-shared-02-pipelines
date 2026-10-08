@@ -4,6 +4,16 @@ All notable changes to `nova-devops`. The repo does **not** use SemVer - workflo
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## 2026-10-07 - LaTeX lint and build
+
+The CV repository built its PDFs with an inline TeX Live job and had no lint. A second LaTeX project is about to start, so both steps move here.
+
+### Added
+- `reusable-latex-lint.yml`: chktex over the tracked `.tex` files, installed from Ubuntu's package so the job pulls no TeX Live image. Each file is linted on its own with `-I0`: following `\input` reported files twice and failed on paths built from macros. Every warning is a GitHub annotation on its line, and the job fails when there is one unless `fail-on-warnings` is false. The caller's `.chktexrc` is loaded when it exists. chktex exits 2 when it finds warnings, so the count comes from the annotations, and stdin is closed because chktex reads it when it has nothing else to read.
+- `reusable-latex-build.yml`: runs the caller's build command inside `xu-cheng/texlive-action` (scheme `full` or `small`, the two the action ships) and uploads `artifact-path` as `artifact-name` when a name is given. Meant to be called from a matrix, one job per document.
+- Neither declares concurrency, and both are read-only, time-bounded and SHA-pinned (`texlive-action` v3 at `22c0432`).
+- 18 Pester tests in `tests/reusable-latex.Tests.ps1`. A copy of the lint workflow without `-I0` and with `${{ inputs.paths }}` inside `run:` fails two of them. Pester suite: 258 → 276.
+
 ## 2026-10-07 - Outputs for release-please
 
 `reusable-release-please.yml` declared no outputs, so a caller could not tell whether the run had created a release. That matters because a release created with `GITHUB_TOKEN` does not trigger other workflows: a tag-push or `on: release` workflow never runs after it, so a caller that passes `GITHUB_TOKEN` can only build the release assets in the same run, and for that it needs to know that the release exists.

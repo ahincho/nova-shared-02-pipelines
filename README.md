@@ -1,8 +1,8 @@
 # nova-devops
 
-Centralized repository of reusable workflows and composite actions for GitHub Actions, powering the CI/CD pipelines of the `pe.edu.nova` Java library ecosystem and of Python projects managed with [uv](https://docs.astral.sh/uv/).
+Centralized repository of reusable workflows and composite actions for GitHub Actions, powering the CI/CD pipelines of the `pe.edu.nova` Java library ecosystem of Python projects managed with [uv](https://docs.astral.sh/uv/), and of LaTeX documents.
 
-This repository provides a standardized CI/CD pipeline with dedicated variants for **Maven** and **Gradle KTS**, native dependency caching, security scanning (CodeQL, OWASP Dependency-Check, SonarCloud, SBOM), automated versioning via [release-please](https://github.com/googleapis/release-please), and tag-based publication to GitHub Packages. Python projects get a build pipeline (ruff, pytest) with uv, Python and dependency caching.
+This repository provides a standardized CI/CD pipeline with dedicated variants for **Maven** and **Gradle KTS**, native dependency caching, security scanning (CodeQL, OWASP Dependency-Check, SonarCloud, SBOM), automated versioning via [release-please](https://github.com/googleapis/release-please), and tag-based publication to GitHub Packages. Python projects get a build pipeline (ruff, pytest) with uv, Python and dependency caching. LaTeX projects get a chktex lint and a TeX Live build that uploads the PDFs as artifacts.
 
 > All workflows and composite actions are referenced using **commit SHAs** (Lote Q, July 2026). Pinning to a branch (`@main`) or a SemVer tag (`@vX.Y.Z`) is **not supported** and breaks reproducibility. The canonical internal action SHA is `300f6695c82197f50b2cfa0831bd146ed549a279`. The Python pieces came later: pin them to `8e875e2a349c1853074c4990f2b9878295041194` or a newer commit.
 
@@ -40,6 +40,8 @@ This repository provides a standardized CI/CD pipeline with dedicated variants f
     reusable-build-maven.yml          # Build + test + lint + javadoc (Maven)
     reusable-build-matrix.yml         # Matrix build across Java/Gradle versions
     reusable-build-python.yml         # Lint + format check + tests (Python, uv)
+    reusable-latex-build.yml          # Compile a LaTeX project with TeX Live, upload the PDFs
+    reusable-latex-lint.yml           # chktex lint of the .tex sources, as annotations
     reusable-owasp-check.yml          # OWASP Dependency-Check (SCA)
     reusable-package-retention.yml    # Cleanup old SNAPSHOTs on GitHub Packages
     reusable-publish-gradle.yml       # DEPRECATED — use reusable-release-publish.yml
@@ -153,6 +155,38 @@ Lints, checks formatting and runs the test suite of a Python project managed wit
 | Tests | `uv run --no-sync pytest` |
 
 ruff and pytest come from the consumer's own `uv.lock`; the workflow installs neither. It declares no workflow-level concurrency: inside a called workflow `github.workflow` is the caller's name, so a group shared with the caller deadlocks and GitHub cancels the run. The caller declares its own.
+
+### LaTeX Pipelines
+
+#### `reusable-latex-lint.yml`
+Lints the tracked `.tex` files with [chktex](https://www.nongnu.org/chktex/). Each file is checked on its own (`-I0`, so `\input` is not followed and nothing is reported twice), every warning becomes a GitHub annotation on its line, and the job fails when there is at least one. chktex comes from Ubuntu's package, so the job takes seconds and pulls no TeX Live image.
+
+| Input | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `paths` | string | no | `'*.tex'` | Space-separated git pathspecs of the files to lint; the default matches every `.tex` file |
+| `config-file` | string | no | `'.chktexrc'` | chktex resource file of the caller, loaded when it exists |
+| `fail-on-warnings` | boolean | no | `true` | Fail the job when chktex reports at least one warning |
+
+The caller tunes the rules in its own `.chktexrc`. A typical one turns off the warnings that clash with a house style, for example:
+
+```
+# 1: a macro at the end of a line with its arguments below it
+# 8: "--" in date ranges and "-" in URLs or identifiers
+CmdLine { -n1 -n8 }
+```
+
+#### `reusable-latex-build.yml`
+Compiles a LaTeX project inside the TeX Live image of [xu-cheng/texlive-action](https://github.com/xu-cheng/texlive-action) and, when `artifact-name` is set, uploads the result. The build command is the caller's (a script, `latexmk` or a plain `pdflatex` call), so the recipe does not assume a layout. To build several documents, call it from a matrix: one job per document.
+
+| Input | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `command` | string | no | `'./scripts/build.sh'` | Build command, run from the repository root inside the container |
+| `scheme` | string | no | `'full'` | TeX Live scheme: `full` or `small` |
+| `artifact-name` | string | no | `''` | Name of the artifact to upload; empty skips the upload |
+| `artifact-path` | string | no | `'build/*.pdf'` | Files to upload |
+| `retention-days` | number | no | `30` | Days GitHub keeps the artifact |
+
+`command` is code by design: only the caller's workflow sets it, never data from an issue, a PR title or a branch name. Neither workflow declares concurrency: a matrix calls the build once per document, and a shared group would cancel all but one.
 
 ### Quality and Security Pipelines
 
@@ -304,7 +338,7 @@ The workflows here pin the composite actions to the same canonical commit (`300f
 
 ## Pester Test Suite
 
-A 243-test Pester 5.7.1 suite covers workflow structure, input surfaces, security-critical patterns (env-var indirection, SHA pinning), and migrations.
+A 276-test Pester 5.7.1 suite covers workflow structure, input surfaces, security-critical patterns (env-var indirection, SHA pinning), and migrations.
 
 ```powershell
 $env:PSModulePath = "$env:USERPROFILE\Documents\PowerShell\Modules;" + $env:PSModulePath
@@ -320,6 +354,8 @@ Invoke-Pester ./tests
 | `nova-resolve-token.Tests.ps1` | GitHub App token resolution action |
 | `nova-setup-python.Tests.ps1` | uv and Python setup action: inputs, SHA pins, env-var wiring, cache and sync behaviour |
 | `reusable-build-python.Tests.ps1` | Python build workflow: triggers, inputs, hardening, SHA pins, step wiring |
+| `reusable-latex.Tests.ps1` | LaTeX lint and build workflows: triggers, inputs, hardening, SHA pins, chktex and TeX Live wiring |
+| `reusable-release-please.Tests.ps1` | release-please workflow: inputs and the outputs it exposes |
 | `reusable-package-retention.Tests.ps1` | SNAPSHOT cleanup workflow |
 | `reusable-sonarcloud.Tests.ps1` | SonarCloud workflow input surface, env-var wiring, SHA-pinning |
 | `rotate-nova-tokens.Tests.ps1` | Operator script for `rotate-nova-tokens.ps1` |
@@ -520,6 +556,52 @@ A check that only one project needs runs in its own job with the composite actio
         with:
           save-cache: 'false'
       - run: uv run --no-sync python scripts/check.py
+```
+
+### LaTeX consumer
+
+`.github/workflows/ci.yml` for a LaTeX project with a `.chktexrc` and a build script that writes `build/main.pdf`:
+
+```yaml
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-latex-lint.yml@<sha>
+
+  build:
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-latex-build.yml@<sha>
+    with:
+      command: latexmk -pdf -outdir=build main.tex
+      artifact-name: main
+      artifact-path: build/main.pdf
+```
+
+Several documents build in parallel from a matrix, each with its own command and artifact:
+
+```yaml
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        lang: [es, en]
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-latex-build.yml@<sha>
+    with:
+      command: ./scripts/build.sh ${{ matrix.lang }}
+      artifact-name: document-${{ matrix.lang }}
+      artifact-path: build/document-${{ matrix.lang }}.pdf
 ```
 
 ## Library Ecosystem
