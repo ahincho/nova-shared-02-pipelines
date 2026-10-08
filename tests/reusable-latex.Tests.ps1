@@ -73,7 +73,7 @@ Describe 'reusable-latex-* - shared hardening' {
 
   It 'check out without persisting the token in .git/config' {
     foreach ($name in $script:files.Keys) {
-      $script:files[$name] | Should -Match '(?ms)uses:\s*actions/checkout@\S+.*?with:\s*\n\s+persist-credentials:\s*false' -Because "$name never pushes"
+      $script:files[$name] | Should -Match '(?ms)uses:\s*actions/checkout@\S+[^\n]*\n\s+with:\s*\n(?:\s+[\w-]+:[^\n]*\n)*?\s+persist-credentials:\s*false' -Because "$name never pushes"
     }
   }
 
@@ -144,8 +144,9 @@ Describe 'reusable-latex-lint.yml - chktex' {
 }
 
 Describe 'reusable-latex-build.yml - TeX Live build' {
-  It 'declares the five inputs with their types and defaults' {
+  It 'declares the six inputs with their types and defaults' {
     $expected = [ordered]@{
+      'ref'            = @('string', "''")
       'command'        = @('string', "'./scripts/build.sh'")
       'scheme'         = @('string', "'full'")
       'artifact-name'  = @('string', "''")
@@ -160,6 +161,10 @@ Describe 'reusable-latex-build.yml - TeX Live build' {
       $block | Should -Match ('(?m)^\s+default:\s*' + [regex]::Escape($default) + '\s*$')
       $block | Should -Match '(?m)^\s+required:\s*false\s*$'
     }
+  }
+
+  It 'checks out the requested ref (empty keeps the triggering commit)' {
+    $script:build | Should -Match '(?ms)uses:\s*actions/checkout@[0-9a-f]{40}.*?with:\s*\n\s+ref: \$\{\{ inputs\.ref \}\}\s*\n'
   }
 
   It 'runs the caller command and scheme inside texlive-action' {

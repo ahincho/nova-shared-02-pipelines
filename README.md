@@ -182,6 +182,7 @@ Compiles a LaTeX project inside the TeX Live image of [xu-cheng/texlive-action](
 
 | Input | Type | Required | Default | Description |
 |---|---|---|---|---|
+| `ref` | string | no | `''` | Tag, branch or commit to build; empty builds the commit that triggered the run |
 | `command` | string | no | `'./scripts/build.sh'` | Build command, run from the repository root inside the container |
 | `scheme` | string | no | `'full'` | TeX Live scheme: `full` or `small` |
 | `artifact-name` | string | no | `''` | Name of the artifact to upload; empty skips the upload |
@@ -604,6 +605,57 @@ Several documents build in parallel from a matrix, each with its own command and
       command: ./scripts/build.sh ${{ matrix.lang }}
       artifact-name: document-${{ matrix.lang }}
       artifact-path: build/document-${{ matrix.lang }}.pdf
+```
+
+#### Recommended model: CI, immutable tags, CD on demand
+
+A LaTeX repository works best with three separate workflows:
+
+1. **CI** on every pull request and push: lint and build, PDFs as artifacts to review.
+2. **Release** with `reusable-release-please.yml`: the release PR bumps the version and the CHANGELOG, and merging it creates an immutable `vX.Y.Z` tag and a release with the notes only. No PDF is attached: a release is a version of the sources.
+3. **CD** by hand (`workflow_dispatch`): compiles a chosen tag with `ref` and leaves the PDF as an artifact of that run. A document is a build of a tag, so it can be rebuilt from the same tag at any time; the artifact does not need to live forever.
+
+```yaml
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Tag to build (e.g. v0.2.0). Empty builds the latest vX.Y.Z'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: version
+        env:
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          VERSION="${REQUESTED:-$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)}"
+          git rev-parse -q --verify "refs/tags/$VERSION" > /dev/null || { echo "::error::No tag $VERSION"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: resolve
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-latex-build.yml@<sha>
+    with:
+      ref: ${{ needs.resolve.outputs.version }}
+      command: latexmk -pdf -outdir=build main.tex
+      artifact-name: main-${{ needs.resolve.outputs.version }}
+      artifact-path: build/main.pdf
+      retention-days: 90
 ```
 
 ## Library Ecosystem

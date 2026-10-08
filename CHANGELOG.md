@@ -4,6 +4,15 @@ All notable changes to `nova-devops`. The repo does **not** use SemVer - workflo
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## 2026-10-08 - LaTeX build of a given tag
+
+The CV repository published every on-demand build as a GitHub release (`ai-engineer-en-v0.2.0`), which filled the release list with builds that are not versions. Its CD now compiles a release tag into a workflow artifact instead, and the build recipe needs to check out that tag.
+
+### Added
+- `ref` input in `reusable-latex-build.yml`: the tag, branch or commit to check out. Empty keeps the commit that triggered the run, so existing callers do not change.
+- README: the recommended model for LaTeX repositories (CI on every change, release-please for immutable `vX.Y.Z` tags with notes only, CD by hand that builds a tag into an artifact), with a CD example.
+- 1 Pester test: the checkout passes `ref`. The `persist-credentials` check now accepts other keys before it under `with:`. Removing the `ref:` line fails the new test. Pester suite: 276 → 277.
+
 ## 2026-10-07 - LaTeX lint and build
 
 The CV repository built its PDFs with an inline TeX Live job and had no lint. A second LaTeX project is about to start, so both steps move here.
