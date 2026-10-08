@@ -7,6 +7,11 @@
 # pdflatex call. To build several documents, call it from a matrix: one job
 # per document, each with its own command and artifact.
 #
+# `ref` builds a given tag, branch or commit instead of the one that triggered
+# the run. A CD workflow uses it to compile an immutable release tag (vX.Y.Z)
+# on demand: CI validates every change, release-please tags the versions, and
+# the CD rebuilds any tag into a downloadable artifact.
+#
 # `command` is code by design: it runs as given, inside the container. Only the
 # caller's workflow sets it, never data from an issue, a PR title or a branch.
 #
@@ -20,6 +25,11 @@ name: Reusable LaTeX Build (TeX Live)
 on:
   workflow_call:
     inputs:
+      ref:
+        description: 'Tag, branch or commit to build. Empty builds the commit that triggered the run'
+        required: false
+        type: string
+        default: ''
       command:
         description: "Build command, run from the repository root inside the TeX Live container (e.g. 'latexmk -pdf main.tex')"
         required: false
@@ -60,6 +70,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
 
       - name: Compile
