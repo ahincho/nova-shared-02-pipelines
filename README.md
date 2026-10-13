@@ -16,6 +16,7 @@ This repository provides a standardized CI/CD pipeline with dedicated variants f
   - [Publish Pipelines](#publish-pipelines)
   - [Release Orchestration](#release-orchestration)
   - [Database Pipelines](#database-pipelines)
+  - [Deployment Pipelines](#deployment-pipelines)
   - [Standalone Workflows](#standalone-workflows)
 - [Available Composite Actions](#available-composite-actions)
 - [Pester Test Suite](#pester-test-suite)
@@ -43,6 +44,7 @@ This repository provides a standardized CI/CD pipeline with dedicated variants f
     reusable-build-python.yml         # Lint + format check + tests (Python, uv)
     reusable-latex-build.yml          # Compile a LaTeX project with TeX Live, upload the PDFs
     reusable-latex-lint.yml           # chktex lint of the .tex sources, as annotations
+    reusable-merged-pr-gate.yml       # Resolve the commit to deploy: a merged PR with green CI
     reusable-owasp-check.yml          # OWASP Dependency-Check (SCA)
     reusable-package-retention.yml    # Cleanup old SNAPSHOTs on GitHub Packages
     reusable-publish-gradle.yml       # DEPRECATED — use reusable-release-publish.yml
@@ -53,6 +55,7 @@ This repository provides a standardized CI/CD pipeline with dedicated variants f
     reusable-sbom.yml                 # CycloneDX SBOM generation
     reusable-sonarcloud-gradle.yml    # SonarCloud + JaCoCo (Gradle)
     reusable-sonarcloud-maven.yml     # SonarCloud + JaCoCo (Maven)
+    reusable-ssh-deploy.yml           # Send a build artifact to a server over SSH
     reusable-supabase-migrations.yml  # Apply Supabase migrations to a remote database
   actions/                            # 9 composite actions
     nova-gather-facts/
@@ -67,7 +70,7 @@ This repository provides a standardized CI/CD pipeline with dedicated variants f
   migrations/                         # Bundle migrations applied via gh CLI
     nova-bom-lote-f/
     nova-java-spring-boot-parent-lote-f/
-tests/                                # Pester 5.7.1 test suite (311 tests)
+tests/                                # Pester 5.7.1 test suite (384 tests)
 scripts/                              # PowerShell operator scripts
   apply-nova-labels.ps1
   apply-nova-metadata.ps1
@@ -387,6 +390,144 @@ jobs:
 
 Each database is a job of its own, with its own `if:` and its own secret. A single job that picks the secret with `inputs.target == 'prod' && secrets.SUPABASE_PROD_DB_URL || secrets.SUPABASE_DEV_DB_URL` would fall back to the dev database when the prod secret is missing, because an empty secret is falsy; with two jobs the prod job only ever receives the prod secret, so a missing one fails the prod run. For a repository that keeps `supabase/` in a subfolder, set `working-directory` and adjust the `paths` filter to match.
 
+### Deployment Pipelines
+
+Two workflows deploy on demand to a server reached over SSH, with no registry and no credential on the server. `reusable-merged-pr-gate.yml` decides what may be deployed and `reusable-ssh-deploy.yml` delivers it. A caller chains them with a build job in between, as in the [example](#a-deploy-workflow-gate-build-deploy) at the end of this section.
+
+#### `reusable-merged-pr-gate.yml`
+Turns what a person typed to deploy on demand, the number of a merged pull request or a commit SHA, into the commit to deploy, and refuses unless that commit is the merge commit of a pull request into the base branch whose last CI run on the pull request head finished green. Private repositories on GitHub's free plan cannot require pull requests or status checks on `main`, so the pipeline makes the check itself. The workflow runs no third-party action: it only calls `gh` and `jq`, which the runner image ships.
+
+| Input | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `target` | string | yes | — | What to deploy: the number of a merged pull request (`224` or `#224`) or a commit SHA of 7 to 40 lowercase hex characters |
+| `base-branch` | string | no | `'main'` | Branch the pull request must have been merged into |
+| `ci-workflow` | string | no | `'ci.yml'` | File name of the CI workflow whose last `pull_request` run on the pull request head must have concluded `success` |
+
+| Output | Description |
+|---|---|
+| `sha` | Full 40-character SHA of the merge commit to deploy: the squash commit on the base branch, in repositories that squash-merge |
+| `pr-number` | Number of the merged pull request that produced it |
+
+**Secrets required:** none, it reads with the token of the run. **The caller must grant `actions: read`, `contents: read` and `pull-requests: read`**, at the top of its workflow or on the job that calls this one: a reusable workflow gets the intersection of its own permissions and the caller's, so a caller that grants less makes the `gh` calls fail.
+
+| Typed | Read as | Refused unless |
+|---|---|---|
+| Digits only, with an optional `#` | A pull request number | The pull request exists, is merged and was merged into `base-branch`. The commit is its `merge_commit_sha` |
+| 7 to 40 lowercase hex characters | A commit | The commit exists and is the `merge_commit_sha` of a merged pull request into `base-branch` |
+| Anything else | Nothing | Always refused |
+
+In both cases the last `pull_request` run of `ci-workflow` on the head commit of that pull request must have concluded `success`; a run that is still going, a cancelled one and no run at all are all refused. Every refusal is an `::error::` that ends in `Not deploying.` and fails the job, so the jobs that `need` it never run. A value made only of digits is always a pull request number, so a short SHA that happens to have no letters (about 4 in 100 of the 7-character ones) is looked up as a pull request: paste the full SHA, or the pull request number.
+
+#### `reusable-ssh-deploy.yml`
+Delivers a build artifact that an earlier job of the same run uploaded to a server over SSH. The server pins the deploy key in `authorized_keys` to a single forced command, a deploy script, so the key can run nothing else. The workflow sends one stream and no remote command: the first line is the commit SHA, or `<component> <sha>` when `component` is set, and the bytes of the artifact file follow it.
+
+| Input | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `sha` | string | yes | — | Full 40-character lowercase commit SHA being deployed; anything else fails the run |
+| `component` | string | no | `''` | Component to deploy when one key serves several, for example `api` or `web`: lowercase letters, digits and hyphens, starting with a letter (`^[a-z][a-z0-9-]*$`). When set, the first line sent is `<component> <sha>` instead of `<sha>`; anything else fails the run |
+| `artifact-name` | string | yes | — | Name the caller gave the artifact in `actions/upload-artifact`, in an earlier job of the same run |
+| `artifact-file` | string | yes | — | The single file inside that artifact to send, for example `site.tar.gz` or `image.tar.gz` |
+| `host` | string | yes | — | Host name or IP address of the server, written as in `known-hosts`. Port 22 |
+| `known-hosts` | string | yes | — | `known_hosts` line(s) of the server, for example `203.0.113.5 ssh-ed25519 AAAA...`. Not secret: pass a repository variable |
+| `ssh-user` | string | yes | — | User to connect as |
+| `health-url` | string | no | `''` | `http` or `https` URL to poll after the deploy with `curl -fsS --retry 5 --retry-delay 3 --retry-all-errors`; empty skips the check |
+| `timeout-minutes` | number | no | `20` | Minutes before GitHub cancels the job |
+
+**Secrets required:** `ssh-key`, the private key of the deploy key, in OpenSSH format and without a passphrase. **The caller must grant `contents: read` and `actions: read`.**
+
+**Pipeline steps:**
+
+| Step | What it does |
+|---|---|
+| Validate the inputs | Fails before anything else unless `sha` is 40 lowercase hex characters, `component` is empty or matches `^[a-z][a-z0-9-]*$`, `host` and `ssh-user` are plain names that cannot start with a dash (which `ssh` would read as an option), `known-hosts` and `ssh-key` are not empty and `health-url` is empty or starts with `http://` or `https://` |
+| Download the artifact | `actions/download-artifact` into a temporary directory. The artifact belongs to the run that calls the workflow, so no token or run id is passed |
+| Check the artifact file | Fails, listing what the artifact holds, when `artifact-file` is not in it, or when its real path is outside the artifact (`..` or a link), which would otherwise send any file of the runner |
+| Install the key | Writes the key to `~/.ssh/deploy` (mode 0600 in a folder of 0700) and the pinned host key to its own `known_hosts` file, without touching `~/.ssh/known_hosts` |
+| Send | `{ printf '%s\n' "$header"; cat "$file"; } \| ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes ... "$SSH_USER@$HOST"`, where `header` is `<sha>` or `<component> <sha>`. `StrictHostKeyChecking=yes` makes a changed host key refuse to connect |
+| Health check | When `health-url` is set, `curl` it until it answers with a success status |
+| Remove the key | Runs `always()`, so the key and the pinned host key are gone even when the deploy failed |
+
+The job never checks out the repository, so no code of the repository runs next to the key, and the key reaches only the validation and the key-writing steps, through `env`. On the server, the key is one line of `~/.ssh/authorized_keys`:
+
+```
+restrict,command="/usr/local/bin/deploy" ssh-ed25519 AAAA... deploy@ci
+```
+
+`command=` makes the server run that script whatever the client asks for, and `restrict` turns off forwarding and the pseudo-terminal. The script reads the first line of its stdin, checks it, and takes the rest of stdin as the artifact file. One key per project can serve several components: set `component`, and let the forced command be a dispatcher that reads `<component> <sha>` from the first line and hands the rest of stdin to the deploy script of that component. The workflow only lets lowercase letters, digits and hyphens through as the component, and the dispatcher should still match it against its own list. `known-hosts` is what `ssh-keyscan -t ed25519 <host>` prints: check its fingerprint against the one the provider shows before storing it.
+
+Concurrency belongs to the caller, which knows its environments. A deploy cut halfway leaves the server between two versions, so a caller allows one deploy at a time per environment and never cancels the one in progress: `concurrency: { group: deploy-production, cancel-in-progress: false }` on the job that calls this workflow, as below. This workflow declares none: inside a called workflow `github.workflow` is the caller's name, and a group shared with the caller deadlocks.
+
+#### A deploy workflow: gate, build, deploy
+
+`.github/workflows/deploy.yml` in a consumer repository. A person starts it by hand with a merged pull request or a commit; the gate resolves and checks the commit, the build job builds exactly that commit and uploads the result for one day, and the deploy job sends it. The host and the pinned host key are repository variables and the private key a repository secret.
+
+```yaml
+name: Deploy production
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Merged PR number (224) or merge commit SHA to deploy'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-merged-pr-gate.yml@<sha>
+    with:
+      target: ${{ inputs.target }}
+
+  build:
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+          persist-credentials: false
+      - name: Build
+        run: ./scripts/build.sh # writes site.tar.gz
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: site
+          path: site.tar.gz
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
+
+  deploy:
+    needs: [gate, build]
+    permissions:
+      actions: read
+      contents: read
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-ssh-deploy.yml@<sha>
+    with:
+      sha: ${{ needs.gate.outputs.sha }}
+      component: web # omit when the forced command serves a single component
+      artifact-name: site
+      artifact-file: site.tar.gz
+      host: ${{ vars.VPS_HOST }}
+      known-hosts: ${{ vars.VPS_KNOWN_HOSTS }}
+      ssh-user: deploy
+      health-url: https://app.example.com/health
+    secrets:
+      ssh-key: ${{ secrets.VPS_SSH_KEY }}
+```
+
+`compression-level: 0` skips compressing a file that already is a `.tar.gz`. With `archive: false` on `actions/upload-artifact` the artifact is the file itself and its name is the file name, so `artifact-name` and `artifact-file` are the same value. The caller must not wrap the whole workflow in a concurrency group with `cancel-in-progress: true`: cancelling the run would cancel a deploy in progress.
+
 ### Standalone Workflows
 
 These workflows are not reusable. They run directly in this repository.
@@ -418,7 +559,7 @@ The workflows here pin the composite actions to the same canonical commit (`300f
 
 ## Pester Test Suite
 
-A 311-test Pester 5.7.1 suite covers workflow structure, input surfaces, security-critical patterns (env-var indirection, SHA pinning), and migrations.
+A 384-test Pester 5.7.1 suite covers workflow structure, input surfaces, security-critical patterns (env-var indirection, SHA pinning), and migrations.
 
 ```powershell
 $env:PSModulePath = "$env:USERPROFILE\Documents\PowerShell\Modules;" + $env:PSModulePath
@@ -435,9 +576,11 @@ Invoke-Pester ./tests
 | `nova-setup-python.Tests.ps1` | uv and Python setup action: inputs, SHA pins, env-var wiring, cache and sync behaviour |
 | `reusable-build-python.Tests.ps1` | Python build workflow: triggers, inputs, hardening, SHA pins, step wiring |
 | `reusable-latex.Tests.ps1` | LaTeX lint and build workflows: triggers, inputs, hardening, SHA pins, chktex and TeX Live wiring |
+| `reusable-merged-pr-gate.Tests.ps1` | Merged PR gate workflow: interface and outputs, permissions, hardening, resolution of the commit, CI check |
 | `reusable-release-please.Tests.ps1` | release-please workflow: inputs and the outputs it exposes |
 | `reusable-package-retention.Tests.ps1` | SNAPSHOT cleanup workflow |
 | `reusable-sonarcloud.Tests.ps1` | SonarCloud workflow input surface, env-var wiring, SHA-pinning |
+| `reusable-ssh-deploy.Tests.ps1` | SSH deploy workflow: interface, input validation, key handling, artifact check, order and flags of the send |
 | `reusable-supabase-migrations.Tests.ps1` | Supabase migrations workflow: triggers, inputs, secret, hardening, SHA pins, ref guard, order of the CLI steps |
 | `rotate-nova-tokens.Tests.ps1` | Operator script for `rotate-nova-tokens.ps1` |
 
@@ -491,12 +634,14 @@ Each consumer repository needs the following secrets (items marked _optional_ ar
 | `NOVA_SONAR_TOKEN` | `reusable-sonarcloud-{maven,gradle}.yml` | Optional (only if SonarCloud is enabled) |
 | `NOVA_APP_ID` / `NOVA_APP_PRIVATE_KEY` | `nova-resolve-token` | Optional (only for short-lived App tokens) |
 | `SUPABASE_DEV_DB_URL` / `SUPABASE_PROD_DB_URL` | `reusable-supabase-migrations.yml`, as its `db-url` secret | Optional (only for repositories with a Supabase database; the names are the ones in the example) |
+| `VPS_SSH_KEY` | `reusable-ssh-deploy.yml`, as its `ssh-key` secret | Optional (only for repositories that deploy over SSH; the name is the one in the example) |
 
 Repository variables (not secrets):
 
 | Variable | Consumed by | Default | Description |
 |---|---|---|---|
 | `NOVA_PACKAGE_VISIBILITY` | `reusable-publish-*` (deprecated) | `'public'` | Default package visibility (overridable by `visibility` input) |
+| `VPS_HOST` / `VPS_KNOWN_HOSTS` | `reusable-ssh-deploy.yml`, as its `host` and `known-hosts` inputs | none | Host of the server and its pinned host key line(s); the names are the ones in the example |
 
 ## Consumer Repository Example
 

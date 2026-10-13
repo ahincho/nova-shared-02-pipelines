@@ -1,0 +1,205 @@
+# All uses: refs in this workflow are SHA-pinned (Lote Q hardening, see CHANGELOG.md).
+# - External actions: pinned to commit SHAs of the desired version tag
+#
+# The job never checks out the repository: it holds a deploy key, so it runs
+# no code of the repository, and what reaches the server is the artifact an
+# earlier job of the same run built.
+#
+# There is no workflow-level concurrency on purpose. Inside a called
+# workflow, github.workflow resolves to the caller's name, so a group here
+# can collide with the caller's own group and GitHub cancels the run as a
+# deadlock. Concurrency is left to the caller, which knows its environments:
+# one deploy at a time per environment, with cancel-in-progress: false,
+# because cancelling a deploy halfway leaves the server between two versions.
+name: Reusable SSH Deploy
+
+description: |
+  Delivers a build artifact that an earlier job of the same run uploaded to
+  a server over SSH. The server pins the deploy key in authorized_keys to a
+  single forced command, a deploy script, so the key can run nothing else.
+  That command reads the first line of stdin, the commit SHA or, when
+  `component` is set, `<component> <sha>`, and takes the artifact bytes that
+  follow. There is no registry and no credential on the server. The host
+  key is pinned with `known-hosts` and checked strictly, so a changed host
+  key refuses to connect. An optional health check polls `health-url` after
+  the deploy. The private key is on disk for the job only and is deleted at
+  the end, even when the deploy fails.
+
+on:
+  workflow_call:
+    inputs:
+      sha:
+        description: 'Full 40-character lowercase commit SHA being deployed. It is sent on the first line, preceded by the component when there is one; any other value fails the run'
+        required: true
+        type: string
+      component:
+        description: "Component to deploy when one key serves several, e.g. 'api' or 'web': lowercase letters, digits and hyphens, starting with a letter. When set, the first line sent is '<component> <sha>' instead of '<sha>'. Empty sends the SHA only"
+        required: false
+        type: string
+        default: ''
+      artifact-name:
+        description: 'Name the caller gave the artifact in actions/upload-artifact, in an earlier job of the same run'
+        required: true
+        type: string
+      artifact-file:
+        description: "The single file inside that artifact to send, e.g. 'site.tar.gz' or 'image.tar.gz'"
+        required: true
+        type: string
+      host:
+        description: 'Host name or IP address of the server, written as in known-hosts'
+        required: true
+        type: string
+      known-hosts:
+        description: "known_hosts line(s) of the server, e.g. '203.0.113.5 ssh-ed25519 AAAA...'. The host key is checked strictly against them. Not secret: pass a repository variable"
+        required: true
+        type: string
+      ssh-user:
+        description: 'User to connect as'
+        required: true
+        type: string
+      health-url:
+        description: 'http or https URL to poll after the deploy; the run fails when it does not answer with a success status after 5 retries. Empty skips the check'
+        required: false
+        type: string
+        default: ''
+      timeout-minutes:
+        description: 'Minutes before GitHub cancels the job'
+        required: false
+        type: number
+        default: 20
+    secrets:
+      ssh-key:
+        description: >-
+          Private key of the deploy key, in OpenSSH format and without a
+          passphrase. On the server its public half is pinned in
+          authorized_keys to a single forced command. It is written to disk
+          for the job only and deleted at the end.
+        required: true
+
+# IMPORTANT: the CALLER workflow must declare these two scopes in its own
+# permissions block, at the top or on the job that calls this workflow.
+# Reusable workflows inherit the INTERSECTION of caller + reusable
+# permissions.
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  deploy:
+    name: Deploy over SSH
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # Everything is checked before the artifact is downloaded or the key
+      # touches the disk. Inputs and secrets go through env, never
+      # interpolated into the script, so none of them can inject code. The
+      # host and the user are also kept from starting with a dash, which ssh
+      # would read as an option, and the URL from being anything but http(s).
+      - name: Validate the inputs
+        env:
+          SHA: ${{ inputs.sha }}
+          COMPONENT: ${{ inputs.component }}
+          HOST: ${{ inputs.host }}
+          KNOWN_HOSTS: ${{ inputs.known-hosts }}
+          SSH_USER: ${{ inputs.ssh-user }}
+          HEALTH_URL: ${{ inputs.health-url }}
+          SSH_KEY: ${{ secrets.ssh-key }}
+        run: |
+          fail() { echo "::error::$1 Not deploying."; exit 1; }
+
+          [[ $SHA =~ ^[0-9a-f]{40}$ ]] || fail "sha must be a full 40-character lowercase hex commit SHA, not '$SHA'."
+          if [ -n "$COMPONENT" ]; then
+            [[ $COMPONENT =~ ^[a-z][a-z0-9-]*$ ]] || fail "component must be lowercase letters, digits and hyphens, starting with a letter, not '$COMPONENT'."
+          fi
+          [[ $SSH_USER =~ ^[A-Za-z_][A-Za-z0-9._-]*$ ]] || fail "ssh-user '$SSH_USER' is not a plain user name."
+          [[ $HOST =~ ^[A-Za-z0-9][A-Za-z0-9._:-]*$ ]] || fail "host '$HOST' is not a plain host name or IP address."
+          [ -n "$KNOWN_HOSTS" ] || fail "known-hosts is empty: pin the host key of the server, for example in a repository variable."
+          [ -n "$SSH_KEY" ] || fail "The ssh-key secret is empty. Pass the private key of the deploy key in the ssh-key secret of the call."
+          if [ -n "$HEALTH_URL" ]; then
+            [[ $HEALTH_URL =~ ^https?://[^[:space:]]+$ ]] || fail "health-url must be an http or https URL."
+          fi
+
+      # The artifact belongs to this run, so no token or run id is passed:
+      # the action downloads from the current run by default.
+      - name: Download the artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ runner.temp }}/deploy-artifact
+
+      # The path is resolved before it is trusted: a name that climbs out of
+      # the artifact, or a link that points outside it, would otherwise send
+      # any file of the runner, the deploy key included.
+      - name: Check the artifact file
+        env:
+          ARTIFACT_DIR: ${{ runner.temp }}/deploy-artifact
+          ARTIFACT_NAME: ${{ inputs.artifact-name }}
+          ARTIFACT_FILE: ${{ inputs.artifact-file }}
+        run: |
+          fail() { echo "::error::$1 Not deploying."; exit 1; }
+
+          file="$ARTIFACT_DIR/$ARTIFACT_FILE"
+          if [ ! -f "$file" ]; then
+            echo "Files in artifact '$ARTIFACT_NAME':"
+            find "$ARTIFACT_DIR" -type f -printf '  %P\n'
+            fail "File '$ARTIFACT_FILE' is not in artifact '$ARTIFACT_NAME'."
+          fi
+          real=$(realpath -e -- "$file")
+          root=$(realpath -e -- "$ARTIFACT_DIR")
+          case "$real" in
+            "$root"/*) ;;
+            *) fail "File '$ARTIFACT_FILE' resolves outside artifact '$ARTIFACT_NAME'." ;;
+          esac
+          echo "Sending '$ARTIFACT_FILE': $(stat -c %s -- "$file") bytes."
+
+      # known_hosts is a file of its own, so what the caller pins is the only
+      # host key that counts, and no file of the runner is overwritten. A key
+      # or a host line pasted from Windows carries carriage returns, which
+      # ssh does not accept, so they are dropped.
+      - name: Install the SSH key and the pinned host key
+        env:
+          SSH_KEY: ${{ secrets.ssh-key }}
+          KNOWN_HOSTS: ${{ inputs.known-hosts }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" | tr -d '\r' > ~/.ssh/deploy_known_hosts
+
+      # The server runs its forced command whatever the client asks for, so
+      # no remote command is passed. The first line is what that command
+      # reads to know what to deploy; the artifact bytes follow it.
+      - name: Send the artifact
+        env:
+          SHA: ${{ inputs.sha }}
+          COMPONENT: ${{ inputs.component }}
+          HOST: ${{ inputs.host }}
+          SSH_USER: ${{ inputs.ssh-user }}
+          ARTIFACT_DIR: ${{ runner.temp }}/deploy-artifact
+          ARTIFACT_FILE: ${{ inputs.artifact-file }}
+        run: |
+          file="$ARTIFACT_DIR/$ARTIFACT_FILE"
+          if [ -n "$COMPONENT" ]; then
+            header="$COMPONENT $SHA"
+          else
+            header="$SHA"
+          fi
+          echo "Deploying $header to $SSH_USER@$HOST"
+          { printf '%s\n' "$header"; cat "$file"; } | ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$HOME/.ssh/deploy_known_hosts" -T "$SSH_USER@$HOST"
+
+      - name: Check the health URL
+        if: inputs.health-url != ''
+        env:
+          HEALTH_URL: ${{ inputs.health-url }}
+        run: curl -fsS --retry 5 --retry-delay 3 --retry-all-errors "$HEALTH_URL"
+
+      - name: Remove the SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy ~/.ssh/deploy_known_hosts
