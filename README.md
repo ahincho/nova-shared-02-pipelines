@@ -15,6 +15,7 @@ This repository provides a standardized CI/CD pipeline with dedicated variants f
   - [Quality and Security Pipelines](#quality-and-security-pipelines)
   - [Publish Pipelines](#publish-pipelines)
   - [Release Orchestration](#release-orchestration)
+  - [Database Pipelines](#database-pipelines)
   - [Standalone Workflows](#standalone-workflows)
 - [Available Composite Actions](#available-composite-actions)
 - [Pester Test Suite](#pester-test-suite)
@@ -52,6 +53,7 @@ This repository provides a standardized CI/CD pipeline with dedicated variants f
     reusable-sbom.yml                 # CycloneDX SBOM generation
     reusable-sonarcloud-gradle.yml    # SonarCloud + JaCoCo (Gradle)
     reusable-sonarcloud-maven.yml     # SonarCloud + JaCoCo (Maven)
+    reusable-supabase-migrations.yml  # Apply Supabase migrations to a remote database
   actions/                            # 9 composite actions
     nova-gather-facts/
     nova-publish-aggregator/
@@ -65,7 +67,7 @@ This repository provides a standardized CI/CD pipeline with dedicated variants f
   migrations/                         # Bundle migrations applied via gh CLI
     nova-bom-lote-f/
     nova-java-spring-boot-parent-lote-f/
-tests/                                # Pester 5.7.1 test suite (243 tests)
+tests/                                # Pester 5.7.1 test suite (311 tests)
 scripts/                              # PowerShell operator scripts
   apply-nova-labels.ps1
   apply-nova-metadata.ps1
@@ -310,6 +312,81 @@ jobs:
 
 It complements branch protection, it does not replace it: the commit is already on the branch when the run turns red. Pair it with a local `pre-push` hook that refuses pushes to `main`.
 
+### Database Pipelines
+
+#### `reusable-supabase-migrations.yml`
+Applies the Supabase migrations of the calling repository to a remote Postgres database with `supabase db push`: a dry run lists what is pending, the push applies it, and `supabase migration list` prints the final state. One call serves one database, so a repository with a dev and a prod database calls it twice, each time with the connection string of that database. The run fails before it touches anything unless it starts from `required-ref` (`refs/heads/main` by default), so a branch that is not merged yet can never push its schema.
+
+| Input | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `target` | string | yes | — | Label of the database, e.g. `dev` or `prod`. It names the job, the logs and the concurrency group; the `db-url` secret is what selects the database |
+| `supabase-cli-version` | string | no | `'2.116.0'` | Supabase CLI version passed to `supabase/setup-cli`. Keep it fixed so that every run applies the migrations with the same CLI |
+| `working-directory` | string | no | `'.'` | Directory that holds the `supabase/` folder, relative to the repository root |
+| `required-ref` | string | no | `'refs/heads/main'` | Ref the run must start from. Any other ref fails the run before it reaches the database; an empty string disables the check |
+
+**Secrets required:** `db-url`, the Postgres connection string of the database. It is the only credential the workflow takes. When it is empty the run fails with an `::error::` that names the secret, before it checks anything out.
+
+Use the connection string of the **Session pooler** (Connect, in the Supabase dashboard), which looks like `postgresql://postgres.<project-ref>:<password>@<pooler-host>:5432/postgres`, and not the direct connection: the direct host is IPv6-only and GitHub-hosted runners cannot reach it. The password inside the URL must be percent-encoded (`@` becomes `%40`, `/` becomes `%2F`, `:` becomes `%3A`, `%` becomes `%25`), or the CLI cannot read the URL.
+
+**Pipeline steps:**
+
+| Step | Command |
+|---|---|
+| Ref check | Fails unless `github.ref` equals `required-ref` |
+| Secret check | Fails when `db-url` is empty |
+| Checkout | `actions/checkout`, without persisting the token |
+| Setup | `supabase/setup-cli` at `supabase-cli-version` |
+| Pending | `supabase db push --db-url "$DB_URL" --dry-run` |
+| Apply | `supabase db push --db-url "$DB_URL" --yes` |
+| State | `supabase migration list --db-url "$DB_URL"` |
+
+The last three steps run in `working-directory`. The first of them also fails when there is no `supabase/migrations` folder there: the CLI takes a missing folder for "no migrations" and exits 0, so a wrong `working-directory` would otherwise end in a green run that applied nothing.
+
+The job is read-only (`contents: read`), time-bounded and SHA-pinned, and the connection string reaches only the steps that use it, through `env`. Runs of the same repository and `target` never overlap, and a running one is never cancelled: a migration cut halfway leaves the database between two versions, so the next run waits for it. That group is declared on the job and built from the repository and `target`. A caller must not wrap the workflow in a concurrency group with `cancel-in-progress: true`, because cancelling the run would cancel the migration with it.
+
+A caller with a dev database that follows `main` and a prod database that is updated by hand, one secret per database:
+
+```yaml
+name: Supabase migrations
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/migrations/**']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Database to apply the migrations to'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+        default: dev
+
+permissions:
+  contents: read
+
+jobs:
+  dev:
+    if: github.event_name == 'push' || inputs.target == 'dev'
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-supabase-migrations.yml@<sha>
+    with:
+      target: dev
+    secrets:
+      db-url: ${{ secrets.SUPABASE_DEV_DB_URL }}
+
+  prod:
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'prod'
+    uses: ahincho/nova-shared-02-pipelines/.github/workflows/reusable-supabase-migrations.yml@<sha>
+    with:
+      target: prod
+    secrets:
+      db-url: ${{ secrets.SUPABASE_PROD_DB_URL }}
+```
+
+Each database is a job of its own, with its own `if:` and its own secret. A single job that picks the secret with `inputs.target == 'prod' && secrets.SUPABASE_PROD_DB_URL || secrets.SUPABASE_DEV_DB_URL` would fall back to the dev database when the prod secret is missing, because an empty secret is falsy; with two jobs the prod job only ever receives the prod secret, so a missing one fails the prod run. For a repository that keeps `supabase/` in a subfolder, set `working-directory` and adjust the `paths` filter to match.
+
 ### Standalone Workflows
 
 These workflows are not reusable. They run directly in this repository.
@@ -341,7 +418,7 @@ The workflows here pin the composite actions to the same canonical commit (`300f
 
 ## Pester Test Suite
 
-A 276-test Pester 5.7.1 suite covers workflow structure, input surfaces, security-critical patterns (env-var indirection, SHA pinning), and migrations.
+A 311-test Pester 5.7.1 suite covers workflow structure, input surfaces, security-critical patterns (env-var indirection, SHA pinning), and migrations.
 
 ```powershell
 $env:PSModulePath = "$env:USERPROFILE\Documents\PowerShell\Modules;" + $env:PSModulePath
@@ -361,6 +438,7 @@ Invoke-Pester ./tests
 | `reusable-release-please.Tests.ps1` | release-please workflow: inputs and the outputs it exposes |
 | `reusable-package-retention.Tests.ps1` | SNAPSHOT cleanup workflow |
 | `reusable-sonarcloud.Tests.ps1` | SonarCloud workflow input surface, env-var wiring, SHA-pinning |
+| `reusable-supabase-migrations.Tests.ps1` | Supabase migrations workflow: triggers, inputs, secret, hardening, SHA pins, ref guard, order of the CLI steps |
 | `rotate-nova-tokens.Tests.ps1` | Operator script for `rotate-nova-tokens.ps1` |
 
 ## PowerShell Operator Scripts
@@ -412,6 +490,7 @@ Each consumer repository needs the following secrets (items marked _optional_ ar
 | `GITHUB_TOKEN` | All publish workflows | Auto-provided by GitHub |
 | `NOVA_SONAR_TOKEN` | `reusable-sonarcloud-{maven,gradle}.yml` | Optional (only if SonarCloud is enabled) |
 | `NOVA_APP_ID` / `NOVA_APP_PRIVATE_KEY` | `nova-resolve-token` | Optional (only for short-lived App tokens) |
+| `SUPABASE_DEV_DB_URL` / `SUPABASE_PROD_DB_URL` | `reusable-supabase-migrations.yml`, as its `db-url` secret | Optional (only for repositories with a Supabase database; the names are the ones in the example) |
 
 Repository variables (not secrets):
 

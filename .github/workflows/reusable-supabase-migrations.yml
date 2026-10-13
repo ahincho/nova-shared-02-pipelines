@@ -1,0 +1,154 @@
+# All uses: refs in this workflow are SHA-pinned (Lote Q hardening, see CHANGELOG.md).
+# - External actions: pinned to commit SHAs of the desired version tag
+name: Reusable Supabase Migrations
+
+description: |
+  Applies the Supabase migrations of the calling repository to a remote
+  Postgres database with `supabase db push`. A dry run lists what is
+  pending, the push applies it, and `supabase migration list` prints the
+  final state. One call serves one database: a repository with a dev and a
+  prod database calls it twice, each time with the connection string of
+  that database in the `db-url` secret, which is the only credential it
+  takes. The run fails before it touches anything unless it starts from
+  `required-ref` (main by default), so a branch that is not merged yet can
+  never push its schema. Call it from a workflow triggered by `push` to
+  main for a database that follows main, or by `workflow_dispatch` for one
+  that is updated on demand.
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        description: "Label of the database this run applies to, e.g. 'dev' or 'prod'. It names the job, the logs and the concurrency group; the db-url secret is what selects the database"
+        required: true
+        type: string
+      supabase-cli-version:
+        description: "Supabase CLI version passed to supabase/setup-cli, e.g. '2.116.0'. Keep it fixed so that every run applies the migrations with the same CLI"
+        required: false
+        type: string
+        default: '2.116.0'
+      working-directory:
+        description: 'Directory that holds the supabase/ folder, relative to the repository root'
+        required: false
+        type: string
+        default: '.'
+      required-ref:
+        description: "Ref the run must start from, e.g. 'refs/heads/main'. Any other ref fails the run before it reaches the database, so a branch that is not merged yet can never push its schema. Empty disables the check"
+        required: false
+        type: string
+        default: 'refs/heads/main'
+    secrets:
+      db-url:
+        description: >-
+          Postgres connection string of the database to migrate, in the form
+          postgresql://postgres.<project-ref>:<password>@<pooler-host>:5432/postgres.
+          Use the Session pooler string (Connect, in the Supabase dashboard),
+          not the direct connection: the direct host is IPv6-only and
+          GitHub-hosted runners cannot reach it. The password inside the URL
+          must be percent-encoded (for example '@' as %40 and '/' as %2F),
+          or the CLI cannot read the URL.
+        required: true
+
+# Read-only: the job only checks out the sources. The database is reached
+# with the db-url secret, not with the token.
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: Apply Supabase migrations (${{ inputs.target }})
+    runs-on: ubuntu-latest
+    # Generous on purpose: when the timeout fires, the runner kills the CLI in
+    # the middle of a push, the same half-applied state the concurrency group
+    # below exists to avoid.
+    timeout-minutes: 30
+
+    # One run at a time per repository and database, and a running one is never
+    # cancelled: a migration cut halfway leaves the database between two
+    # versions, so the next run waits for it. The group is built from the
+    # repository and the target, not from github.workflow, which inside a
+    # called workflow is the caller's name and could collide with the caller's
+    # own group. A caller must not wrap this workflow in a concurrency group
+    # with cancel-in-progress: true either: cancelling the run would cancel
+    # the migration with it.
+    concurrency:
+      group: supabase-migrations-${{ github.repository }}-${{ inputs.target }}
+      cancel-in-progress: false
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      TARGET: ${{ inputs.target }}
+
+    steps:
+      # First, before anything is checked out or installed, so a run from the
+      # wrong ref fails right away. github.ref is the ref of the caller. Inputs
+      # and context values go through env, never interpolated into the script,
+      # so a ref name or a label cannot inject code.
+      - name: Check the run comes from the required ref
+        env:
+          CURRENT_REF: ${{ github.ref }}
+          REQUIRED_REF: ${{ inputs.required-ref }}
+        run: |
+          if [ -n "$REQUIRED_REF" ] && [ "$CURRENT_REF" != "$REQUIRED_REF" ]; then
+            echo "::error::Migrations to '$TARGET' only run from $REQUIRED_REF and this run is on $CURRENT_REF: a branch that is not merged yet must not push its schema."
+            exit 1
+          fi
+
+      # An empty URL would only fail at the first supabase command, so it is
+      # checked here, with a message that names the secret.
+      - name: Check the database URL is set
+        env:
+          DB_URL: ${{ secrets.db-url }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "::error::The db-url secret for '$TARGET' is empty. Pass the Session pooler connection string of that database in the db-url secret of the call."
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up the Supabase CLI
+        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359  # v3.0.1
+        with:
+          version: ${{ inputs.supabase-cli-version }}
+
+      # The three steps below run in the folder that holds supabase/. It is set
+      # on each step and not as a job default: the ref check above runs before
+      # the checkout, when that folder does not exist yet.
+      #
+      # supabase db push takes a missing supabase/migrations folder for "no
+      # migrations" and exits 0, so a wrong working-directory would end in a
+      # green run that applied nothing.
+      - name: Show the pending migrations
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          DB_URL: ${{ secrets.db-url }}
+        run: |
+          if [ ! -d supabase/migrations ]; then
+            echo "::error::No supabase/migrations folder in $PWD. Check the working-directory input."
+            exit 1
+          fi
+          echo "Pending migrations on '$TARGET':"
+          supabase db push --db-url "$DB_URL" --dry-run
+
+      - name: Apply the migrations
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          DB_URL: ${{ secrets.db-url }}
+        run: |
+          echo "Applying the migrations to '$TARGET'"
+          supabase db push --db-url "$DB_URL" --yes
+
+      - name: Show the final migration state
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          DB_URL: ${{ secrets.db-url }}
+        run: |
+          echo "Migration state of '$TARGET':"
+          supabase migration list --db-url "$DB_URL"
