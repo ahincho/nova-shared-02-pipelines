@@ -324,7 +324,7 @@ Applies the Supabase migrations of the calling repository to a remote Postgres d
 | `working-directory` | string | no | `'.'` | Directory that holds the `supabase/` folder, relative to the repository root |
 | `required-ref` | string | no | `'refs/heads/main'` | Ref the run must start from. Any other ref fails the run before it reaches the database; an empty string disables the check |
 
-**Secrets required:** `db-url`, the Postgres connection string of the database. It is the only credential the workflow takes. A secret the caller does not have reaches the workflow as an empty string, and the run then fails with an `::error::` before it checks anything out.
+**Secrets required:** `db-url`, the Postgres connection string of the database. It is the only credential the workflow takes. When it is empty the run fails with an `::error::` that names the secret, before it checks anything out.
 
 Use the connection string of the **Session pooler** (Connect, in the Supabase dashboard), which looks like `postgresql://postgres.<project-ref>:<password>@<pooler-host>:5432/postgres`, and not the direct connection: the direct host is IPv6-only and GitHub-hosted runners cannot reach it. The password inside the URL must be percent-encoded (`@` becomes `%40`, `/` becomes `%2F`, `:` becomes `%3A`, `%` becomes `%25`), or the CLI cannot read the URL.
 
@@ -385,7 +385,7 @@ jobs:
       db-url: ${{ secrets.SUPABASE_PROD_DB_URL }}
 ```
 
-Each database is a job of its own, with its own `if:` and its own secret. A single job that picks the secret with `inputs.target == 'prod' && secrets.SUPABASE_PROD_DB_URL || secrets.SUPABASE_DEV_DB_URL` would fall back to the dev database when the prod secret is missing, because an empty secret is falsy; with two jobs, a missing prod secret reaches the workflow empty and the run fails. For a repository that keeps `supabase/` in a subfolder, set `working-directory` and adjust the `paths` filter to match.
+Each database is a job of its own, with its own `if:` and its own secret. A single job that picks the secret with `inputs.target == 'prod' && secrets.SUPABASE_PROD_DB_URL || secrets.SUPABASE_DEV_DB_URL` would fall back to the dev database when the prod secret is missing, because an empty secret is falsy; with two jobs the prod job only ever receives the prod secret, so a missing one fails the prod run. For a repository that keeps `supabase/` in a subfolder, set `working-directory` and adjust the `paths` filter to match.
 
 ### Standalone Workflows
 

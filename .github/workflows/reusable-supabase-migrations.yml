@@ -97,8 +97,8 @@ jobs:
             exit 1
           fi
 
-      # A secret the caller does not have reaches the job as an empty string,
-      # not as an error, so it is checked here instead of at the first command.
+      # An empty URL would only fail at the first supabase command, so it is
+      # checked here, with a message that names the secret.
       - name: Check the database URL is set
         env:
           DB_URL: ${{ secrets.db-url }}
