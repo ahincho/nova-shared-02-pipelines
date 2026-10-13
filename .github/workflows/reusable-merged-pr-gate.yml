@@ -1,0 +1,105 @@
+name: Reusable Merged PR Gate
+
+description: |
+  Turns what a person typed to deploy on demand, the number of a merged
+  pull request or a commit SHA, into the commit to deploy, and refuses
+  unless that commit is the merge commit of a pull request into the base
+  branch whose last CI run on the pull request head finished green. It
+  exists because private repositories on GitHub's free plan cannot require
+  pull requests or status checks on main, so the pipeline makes the check
+  itself. Call it in the first job of a deploy workflow and give the next
+  jobs its `sha` output. The workflow runs no third-party action: it only
+  calls gh and jq, which the runner image ships.
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        description: "What to deploy: the number of a merged pull request ('224' or '#224') or a commit SHA of 7 to 40 lowercase hex characters. A value made only of digits is always read as a pull request number"
+        required: true
+        type: string
+      base-branch:
+        description: 'Branch the pull request must have been merged into'
+        required: false
+        type: string
+        default: 'main'
+      ci-workflow:
+        description: "File name of the CI workflow whose last 'pull_request' run on the pull request head must have concluded 'success'"
+        required: false
+        type: string
+        default: 'ci.yml'
+    outputs:
+      sha:
+        description: 'Full 40-character SHA of the merge commit to deploy'
+        value: ${{ jobs.gate.outputs.sha }}
+      pr-number:
+        description: 'Number of the merged pull request that produced that commit'
+        value: ${{ jobs.gate.outputs.pr-number }}
+
+# IMPORTANT: the CALLER workflow must declare these three scopes in its own
+# permissions block, at the top or on the job that calls this workflow.
+# Reusable workflows inherit the INTERSECTION of caller + reusable
+# permissions, so a caller that grants less makes the gh calls fail.
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+jobs:
+  gate:
+    name: Check the commit to deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    defaults:
+      run:
+        shell: bash
+
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+      pr-number: ${{ steps.resolve.outputs.pr-number }}
+
+    steps:
+      # Inputs and context values go through env, never interpolated into the
+      # script, so what a person types cannot inject code. The commit to
+      # deploy is the merge_commit_sha of the pull request: the squash commit
+      # that landed on the base branch, in repositories that squash-merge.
+      - name: Resolve the commit and check its pull request
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ inputs.target }}
+          BASE: ${{ inputs.base-branch }}
+          CI_WORKFLOW: ${{ inputs.ci-workflow }}
+        run: |
+          fail() { echo "::error::$1 Not deploying."; exit 1; }
+
+          target=$(tr -d '#[:space:]' <<<"$TARGET")
+          if [[ $target =~ ^[0-9]+$ ]]; then
+            pr=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$target") || fail "PR #$target does not exist."
+            [ "$(jq -r .merged_at <<<"$pr")" != null ] || fail "PR #$target is not merged."
+            [ "$(jq -r .base.ref <<<"$pr")" = "$BASE" ] || fail "PR #$target was not merged into $BASE."
+            sha=$(jq -r .merge_commit_sha <<<"$pr")
+          elif [[ $target =~ ^[0-9a-f]{7,40}$ ]]; then
+            sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$target" --jq .sha) || fail "Commit $target does not exist."
+            prs=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls") || fail "Could not list the pull requests of $sha."
+            pr=$(jq -c --arg sha "$sha" --arg base "$BASE" '[.[] | select(.merged_at != null and .merge_commit_sha == $sha and .base.ref == $base)][0] // empty' <<<"$prs")
+            [ -n "$pr" ] || fail "$sha is not the merge of a pull request into $BASE."
+          else
+            fail "'$TARGET' is neither a PR number nor a SHA."
+          fi
+          [[ $sha =~ ^[0-9a-f]{40}$ ]] || fail "'$TARGET' did not resolve to a full commit SHA."
+
+          number=$(jq -r .number <<<"$pr")
+          head_sha=$(jq -r .head.sha <<<"$pr")
+          ci=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$CI_WORKFLOW" --event pull_request --commit "$head_sha" --limit 1 --json conclusion --jq '.[0].conclusion // empty') || fail "Could not list the runs of $CI_WORKFLOW."
+          [ "$ci" = success ] || fail "CI of PR #$number on $head_sha finished as '${ci:-no run}'."
+
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "pr-number=$number" >> "$GITHUB_OUTPUT"
+          echo "PR #$number merged into $BASE as $sha, with $CI_WORKFLOW green on $head_sha."
+          {
+            echo "### Merged PR gate"
+            echo
+            echo "Deploying PR #$number as \`$sha\`, with \`$CI_WORKFLOW\` green on \`$head_sha\`."
+          } >> "$GITHUB_STEP_SUMMARY"
