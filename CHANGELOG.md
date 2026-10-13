@@ -4,6 +4,18 @@ All notable changes to `nova-devops`. The repo does **not** use SemVer - workflo
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
+## 2026-10-12 - Supabase migrations
+
+A repository that keeps its database schema as Supabase migrations has to apply them to its dev and prod databases from CI, and each copy of that job would carry its own version of the guards. The recipe moves here, so every such repository calls it.
+
+### Added
+- `reusable-supabase-migrations.yml`: installs the Supabase CLI with `supabase/setup-cli` (v3.0.1 at `45a513f`, CLI `2.116.0` by default), shows the pending migrations with `supabase db push --dry-run`, applies them with `supabase db push --yes` and prints `supabase migration list`. The database is the `db-url` secret, the connection string of the Session pooler: the direct connection is IPv6-only and GitHub-hosted runners cannot reach it. The password inside it must be percent-encoded.
+- The run fails before it checks anything out unless `github.ref` is `required-ref` (`refs/heads/main` by default, empty disables the check), so a branch that is not merged yet cannot push its schema. It also fails with an `::error::` when `db-url` is empty, because a secret the caller does not have arrives as an empty string.
+- The concurrency group sits on the job and is built from the repository and `target`, with `cancel-in-progress: false`: a migration cut halfway leaves the database between two versions, so the next run waits for the one in progress. The workflow is read-only, time-bounded and SHA-pinned, and the connection string reaches only the steps that use it, through `env`.
+- The `supabase` steps run in `working-directory`, and the first one fails when `supabase/migrations` is missing there: the CLI takes a missing folder for "no migrations" and exits 0, so a wrong directory would end in a green run that applied nothing.
+- README: a *Database Pipelines* section with a caller that applies `dev` on every push to `main` that touches `supabase/migrations/**` and `prod` by hand, as two jobs with one secret each, so that a missing prod secret can never fall back to the dev database.
+- 34 Pester tests in `tests/reusable-supabase-migrations.Tests.ps1`. Sixty copies of the workflow with one defect each (`cancel-in-progress: true`, `${{ inputs.target }}` inside `run:`, the ref check removed or moved after the checkout, the dry run and the push swapped, the secret at job level, an unpinned action, among others) each fail at least one of them. Pester suite: 277 → 311.
+
 ## 2026-10-08 - LaTeX build of a given tag
 
 The CV repository published every on-demand build as a GitHub release (`ai-engineer-en-v0.2.0`), which filled the release list with builds that are not versions. Its CD now compiles a release tag into a workflow artifact instead, and the build recipe needs to check out that tag.
